@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PinPointParis — Party Live & Mapillary 360°</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            paris: {
+              dark: '#090d16',
+              card: '#111827',
+              accent: '#3b82f6',
+              gold: '#f59e0b'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Google Fonts Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS & JS (OpenStreetMap France) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Three.js pour la vue panoramique 360° -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- QR Code Generator & Caméra Scanner -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body, html {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background-color: #090d16; color: #f8fafc;
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow: hidden; user-select: none;
+    }
+    .screen { display: none; width: 100%; height: 100%; }
+    .screen.active { display: flex; }
+    #viewer-canvas { touch-action: none; cursor: grab; }
+    #viewer-canvas:active { cursor: grabbing; }
+    .leaflet-container { background: #1e293b !important; font-family: inherit !important; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-paris-dark text-slate-100 antialiased">
+
+  <!-- ==================== 1. ÉCRAN D'ACCUEIL ==================== -->
+  <section id="screen-home" class="screen active flex-col items-center justify-between p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+    <!-- Top bar -->
+    <header class="w-full max-w-2xl flex items-center justify-between pt-1">
+      <div class="flex items-center gap-2.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-rose-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="fa-solid fa-location-crosshairs text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-xl font-extrabold tracking-tight leading-none">PinPoint<span class="text-blue-400">Paris</span></h1>
+          <span class="text-[11px] text-slate-400 font-medium">Mapillary 360° • Party Edition</span>
+        </div>
+      </div>
+
+      <button type="button" onclick="openSettingsModal()" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700/70 text-slate-300 transition" title="Configuration API & Firebase">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </header>
+
+    <!-- Centre : Identité & Actions Multijoueur / Solo -->
+    <main class="w-full max-w-xl my-auto py-4 flex flex-col gap-4">
+      <!-- Pseudo joueur -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <label for="input-player-name" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
+          <i class="fa-solid fa-user-astronaut text-blue-400 mr-1.5"></i>Ton pseudo de joueur
+        </label>
+        <input id="input-player-name" type="text" maxlength="18" placeholder="Ex: Léo, Chloé, Zizou75..."
+          class="w-full bg-slate-950 border border-slate-700/80 focus:border-blue-500 rounded-xl px-4 py-3 text-base font-semibold text-white outline-none transition select-text" />
+      </div>
+
+      <!-- Boutons Principaux : Créer / Rejoindre -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button type="button" onclick="createLobbyFlow()" class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 p-4 text-left shadow-lg shadow-blue-600/20 transition active:scale-[0.98]">
+          <div class="flex items-center justify-between mb-2">
+            <span class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white text-lg">
+              <i class="fa-solid fa-crown"></i>
+            </span>
+            <span class="text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">Hôte</span>
+          </div>
+          <div class="text-lg font-extrabold text-white">Créer une partie</div>
+          <div class="text-xs text-blue-100/85 mt-0.5">Ouvre un lobby avec QR Code & réglages</div>
+        </button>
+
+        <button type="button" onclick="openJoinModal()" class="group rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-700/80 p-4 text-left shadow-lg transition active:scale-[0.98]">
+          <div class="flex items-center justify-between mb-2">
+            <span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-qrcode"></i>
+            </span>
+            <span class="text-[11px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 px-2.5 py-0.5 rounded-full">Invité</span>
+          </div>
+          <div class="text-lg font-extrabold text-white">Rejoindre</div>
+          <div class="text-xs text-slate-400 mt-0.5">Scanner le QR Code ou entrer un code</div>
+        </button>
+      </div>
+
+      <!-- Boutons secondaires : Scanner caméra direct + Entraînement Solo -->
+      <div class="grid grid-cols-2 gap-3">
+        <button type="button" onclick="openQrScannerModal()" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 text-sm font-semibold text-emerald-300 transition">
+          <i class="fa-solid fa-camera"></i> Scanner QR Code
+        </button>
+        <button type="button" onclick="startSoloQuickGame()" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 text-sm font-semibold text-slate-200 transition">
+          <i class="fa-solid fa-play text-blue-400"></i> Partie Solo Rapide
+        </button>
+      </div>
+
+      <!-- Barre de saisie directe de code manuel -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex items-center gap-2 shadow-lg">
+        <i class="fa-solid fa-keyboard text-slate-400 pl-2"></i>
+        <input id="input-home-manual-code" type="text" placeholder="Entrer un code salon (PARI) ou défi (paris@30:...)"
+          onkeydown="if(event.key==='Enter') submitHomeManualCode()"
+          class="flex-1 bg-transparent text-xs sm:text-sm font-mono text-white placeholder-slate-500 outline-none select-text" />
+        <button type="button" onclick="submitHomeManualCode()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-extrabold text-white shrink-0 transition">
+          Rejoindre
+        </button>
+      </div>
+
+      <!-- Paramètres rapides (pour Solo ou défaut) -->
+      <div class="bg-slate-900/70 border border-slate-800/90 rounded-2xl p-4 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Terrain par défaut</span>
+          <span id="badge-firebase-status" class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            Mode Local / Défi
+          </span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2" id="home-zone-selector">
+          <button type="button" data-zone="paris" onclick="selectHomeZone('paris')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/20 text-white transition">
+            Paris (75)
+          </button>
+          <button type="button" data-zone="petite_couronne" onclick="selectHomeZone('petite_couronne')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white transition">
+            Petite Couronne
+          </button>
+          <button type="button" data-zone="idf" onclick="selectHomeZone('idf')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white transition">
+            Grande IDF
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 pt-1">
+          <div>
+            <span class="block text-[11px] text-slate-400 mb-1">Chrono / manche</span>
+            <div class="grid grid-cols-4 gap-1" id="home-timer-selector">
+              <button type="button" data-timer="30" onclick="selectHomeTimer(30)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white">30s</button>
+              <button type="button" data-timer="60" onclick="selectHomeTimer(60)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">60s</button>
+              <button type="button" data-timer="120" onclick="selectHomeTimer(120)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">2m</button>
+              <button type="button" data-timer="0" onclick="selectHomeTimer(0)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">∞</button>
+            </div>
+          </div>
+          <div>
+            <span class="block text-[11px] text-slate-400 mb-1">Manches</span>
+            <div class="grid grid-cols-3 gap-1" id="home-rounds-selector">
+              <button type="button" data-rounds="3" onclick="selectHomeRounds(3)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">3</button>
+              <button type="button" data-rounds="5" onclick="selectHomeRounds(5)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white">5</button>
+              <button type="button" data-rounds="10" onclick="selectHomeRounds(10)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">10</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="text-center text-[11px] text-slate-500 pb-1">
+      Propulsé par Mapillary API v4 & OpenStreetMap France • 100 % Gratuit
+    </footer>
+  </section>
+
+  <!-- ==================== 2. ÉCRAN LOBBY MULTIJOUEUR ==================== -->
+  <section id="screen-lobby" class="screen flex-col items-center justify-between p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+    <div class="w-full max-w-2xl flex items-center justify-between">
+      <button type="button" onclick="leaveLobby()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 flex items-center gap-1.5">
+        <i class="fa-solid fa-arrow-left"></i> Quitter
+      </button>
+      <div class="text-center">
+        <span class="text-[10px] uppercase tracking-widest text-slate-400 block">Code du Salon</span>
+        <div class="flex items-center gap-2 justify-center">
+          <span id="lobby-room-code" class="text-2xl font-black tracking-widest text-blue-400">PARI</span>
+          <button type="button" onclick="copyLobbyInvite()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs" title="Copier le code / lien">
+            <i class="fa-regular fa-copy"></i>
+          </button>
+        </div>
+      </div>
+      <span id="lobby-role-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+        <i class="fa-solid fa-crown mr-1"></i>Chef
+      </span>
+    </div>
+
+    <div class="w-full max-w-2xl my-auto py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Colonne gauche : QR Code + Code Manuel + Liste des joueurs -->
+      <div class="flex flex-col gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
+          <div id="lobby-qrcode" class="bg-white p-2 rounded-xl shrink-0"></div>
+          <div class="text-xs">
+            <div class="font-bold text-white text-sm mb-1">Inviter vos potes</div>
+            <p class="text-slate-400 leading-relaxed">Scannez ce QR Code depuis la caméra du jeu ou partagez le code manuel ci-dessous.</p>
+            <button type="button" onclick="copyLobbyInvite()" class="mt-2 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30 transition">
+              <i class="fa-solid fa-share-nodes mr-1"></i> Copier le lien
+            </button>
+          </div>
+        </div>
+
+        <!-- Encart Code Manuel à partager -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-key text-amber-400 mr-1.5"></i>Code manuel à partager
+            </span>
+            <span class="text-[10px] text-slate-500">Sans caméra</span>
+          </div>
+
+          <!-- Code Salon 4 lettres -->
+          <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
+            <div>
+              <span class="block text-[10px] uppercase text-slate-500">Code Salon (Live Firebase)</span>
+              <span id="lobby-manual-room-code" class="text-xl font-black font-mono tracking-[0.25em] text-blue-400">PARI</span>
+            </div>
+            <button type="button" onclick="copyManualRoomCode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition">
+              <i class="fa-regular fa-copy mr-1"></i> Copier
+            </button>
+          </div>
+
+          <!-- Code Défi Manuel (fonctionne même sans Firebase) -->
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] uppercase text-slate-500">Code Défi Manuel (100 % autonome)</span>
+              <button type="button" id="btn-generate-manual-seed" onclick="generateAndCopyLobbyManualSeed()" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Générer & Copier
+              </button>
+            </div>
+            <input id="lobby-manual-seed-input" type="text" readonly placeholder="Cliquez sur Générer pour obtenir le code texte..."
+              class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-slate-300 outline-none select-all" />
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex-1">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-users text-blue-400 mr-1.5"></i>Joueurs connectés
+            </span>
+            <span id="lobby-players-count" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">1</span>
+          </div>
+          <ul id="lobby-players-list" class="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar"></ul>
+        </div>
+      </div>
+
+      <!-- Colonne droite : Préférences du Chef de Partie -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4">
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
+              <i class="fa-solid fa-sliders text-amber-400 mr-1.5"></i>Préférences de la partie
+            </span>
+            <span id="lobby-prefs-lock" class="text-[11px] text-slate-400">Modifiable par le chef</span>
+          </div>
+
+          <div class="space-y-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">Terrain de jeu</label>
+              <div class="grid grid-cols-3 gap-1.5" id="lobby-zone-controls">
+                <button type="button" data-zone="paris" onclick="updateLobbySetting('zone', 'paris')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/20 text-white">Paris (75)</button>
+                <button type="button" data-zone="petite_couronne" onclick="updateLobbySetting('zone', 'petite_couronne')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400">Petite Cour.</button>
+                <button type="button" data-zone="idf" onclick="updateLobbySetting('zone', 'idf')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400">Grande IDF</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">Chrono par manche</label>
+              <div class="grid grid-cols-4 gap-1.5" id="lobby-timer-controls">
+                <button type="button" data-timer="30" onclick="updateLobbySetting('timer', 30)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">30s</button>
+                <button type="button" data-timer="60" onclick="updateLobbySetting('timer', 60)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">60s</button>
+                <button type="button" data-timer="120" onclick="updateLobbySetting('timer', 120)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">2 min</button>
+                <button type="button" data-timer="0" onclick="updateLobbySetting('timer', 0)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">∞ Libre</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs text-slate-400 mb-1.5">Nombre de manches</label>
+              <div class="grid grid-cols-3 gap-1.5" id="lobby-rounds-controls">
+                <button type="button" data-rounds="3" onclick="updateLobbySetting('rounds', 3)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">3 manches</button>
+                <button type="button" data-rounds="5" onclick="updateLobbySetting('rounds', 5)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">5 manches</button>
+                <button type="button" data-rounds="10" onclick="updateLobbySetting('rounds', 10)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">10 manches</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="lobby-firebase-hint" class="hidden text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-200 rounded-xl p-2.5">
+          <i class="fa-solid fa-circle-info mr-1"></i>
+          Mode local actif : vous pouvez lancer la partie ou partager un QR Code Défi en fin de partie. Pour la synchro temps réel multi-téléphones, ajoutez votre config Firebase dans <i class="fa-solid fa-sliders"></i>.
+        </div>
+
+        <div>
+          <button type="button" id="btn-lobby-start" onclick="hostStartLobbyGame()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 transition">
+            <i class="fa-solid fa-rocket mr-2"></i>Lancer la partie pour tous
+          </button>
+          <p id="lobby-guest-wait" class="hidden text-center text-xs text-slate-400 py-2">
+            <i class="fa-solid fa-spinner fa-spin mr-1.5 text-blue-400"></i>En attente du lancement par le chef de partie...
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 3. ÉCRAN CHARGEMENT MAPILLARY ==================== -->
+  <section id="screen-loading" class="screen flex-col items-center justify-center p-6 text-center">
+    <div class="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center mb-4">
+      <i class="fa-solid fa-street-view text-3xl text-blue-400 animate-bounce"></i>
+    </div>
+    <h2 class="text-xl font-extrabold mb-1">Exploration des rues franciliennes...</h2>
+    <p id="loading-status" class="text-sm text-slate-400 mb-5">Recherche de panoramas 360° sur Mapillary (0/5)</p>
+    <div class="w-full max-w-xs bg-slate-800 rounded-full h-2.5 overflow-hidden">
+      <div id="loading-progress-bar" class="bg-gradient-to-r from-blue-500 to-emerald-400 h-full w-0 transition-all duration-300"></div>
+    </div>
+  </section>
+
+  <!-- ==================== 4. ÉCRAN DE JEU (360° + MINI-CARTE) ==================== -->
+  <section id="screen-game" class="screen relative flex-col overflow-hidden">
+    <!-- Visionneuse 360° Three.js -->
+    <div id="viewer-container" class="absolute inset-0 w-full h-full bg-slate-950">
+      <canvas id="viewer-canvas" class="w-full h-full block"></canvas>
+      <!-- Fallback image 2D haute def si panorama non sphérique -->
+      <img id="viewer-fallback-img" class="hidden w-full h-full object-contain bg-black" alt="Vue Street Level" />
+    </div>
+
+    <!-- HUD Supérieur -->
+    <div class="relative z-20 flex items-center justify-between p-3 sm:p-4 pointer-events-none">
+      <!-- Manche & Score -->
+      <div class="pointer-events-auto flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-2xl shadow-lg">
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Manche</div>
+          <div id="hud-round" class="text-sm font-black text-white">1 / 5</div>
+        </div>
+        <div class="h-6 w-px bg-slate-800 mx-1"></div>
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Score</div>
+          <div id="hud-score" class="text-sm font-black text-amber-400">0</div>
+        </div>
+      </div>
+
+      <!-- Boussole centrale -->
+      <div class="pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-2">
+        <i id="hud-compass-icon" class="fa-solid fa-compass text-rose-400 transition-transform duration-100"></i>
+        <span id="hud-compass-text" class="text-xs font-bold tracking-wider text-slate-200">N 0°</span>
+      </div>
+
+      <!-- Chronomètre -->
+      <div id="hud-timer-box" class="pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-2xl shadow-lg flex items-center gap-2">
+        <i class="fa-regular fa-clock text-blue-400"></i>
+        <span id="hud-timer" class="text-sm font-black tabular-nums text-white">00:30</span>
+      </div>
+    </div>
+
+    <!-- Bouton mobile pour ouvrir la carte -->
+    <div class="relative z-20 mt-auto p-4 flex justify-end pointer-events-none md:hidden">
+      <button type="button" onclick="toggleMobileMapDrawer(true)" class="pointer-events-auto flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-xl shadow-blue-950/60 border border-blue-400/30">
+        <i class="fa-solid fa-map-location-dot"></i> Placer mon repère
+      </button>
+    </div>
+
+    <!-- Panneau Mini-Carte (Desktop bas-droite / Mobile tiroir plein écran bas) -->
+    <div id="map-drawer" class="fixed md:absolute inset-x-0 bottom-0 md:inset-x-auto md:right-4 md:bottom-4 z-30 h-[62vh] md:h-72 md:w-96 bg-slate-900 border-t md:border border-slate-700 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col transform translate-y-full md:translate-y-0 transition-transform duration-300">
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
+        <span class="text-xs font-bold text-slate-300"><i class="fa-solid fa-map-pin text-rose-500 mr-1.5"></i>Clique sur la carte pour deviner</span>
+        <button type="button" onclick="toggleMobileMapDrawer(false)" class="md:hidden px-2.5 py-1 rounded-lg bg-slate-800 text-xs text-slate-300">
+          Fermer <i class="fa-solid fa-chevron-down ml-1"></i>
+        </button>
+      </div>
+      <div id="guess-map" class="flex-1 w-full"></div>
+      <div class="p-2.5 bg-slate-950 border-t border-slate-800">
+        <button type="button" id="btn-submit-guess" disabled onclick="submitPlayerGuess()" class="w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-extrabold text-sm transition disabled:cursor-not-allowed">
+          Place un repère sur la carte
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 5. ÉCRAN RÉSULTAT DE MANCHE ==================== -->
+  <section id="screen-round-result" class="screen flex-col bg-paris-dark overflow-hidden">
+    <div id="result-map" class="h-[48vh] w-full border-b border-slate-800"></div>
+
+    <div class="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar flex flex-col items-center justify-between max-w-2xl mx-auto w-full">
+      <div class="w-full text-center">
+        <div class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">
+          Manche <span id="res-round-num">1</span>/<span id="res-round-total">5</span> • Photo Mapillary
+        </div>
+        <div class="flex items-center justify-center gap-4 my-2">
+          <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl">
+            <div class="text-[11px] text-slate-400">Distance</div>
+            <div id="res-distance" class="text-lg font-black text-white">142 m</div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl">
+            <div class="text-[11px] text-slate-400">Temps</div>
+            <div id="res-time" class="text-lg font-black text-blue-400">12,4 s</div>
+          </div>
+          <div class="bg-slate-900 border border-amber-500/30 px-4 py-2 rounded-2xl">
+            <div class="text-[11px] text-slate-400">Points</div>
+            <div id="res-points" class="text-lg font-black text-amber-400">+4 850</div>
+          </div>
+        </div>
+
+        <!-- Classement de la manche si multijoueur -->
+        <div id="res-multi-board" class="hidden mt-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-left">
+          <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Comparatif des joueurs sur cette manche</div>
+          <ul id="res-multi-list" class="space-y-1.5 text-xs"></ul>
+        </div>
+      </div>
+
+      <div class="w-full flex items-center justify-between gap-3 pt-4">
+        <a id="res-mapillary-link" href="#" target="_blank" rel="noopener" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">
+          <i class="fa-solid fa-up-right-from-square mr-1"></i> Voir sur Mapillary
+        </a>
+        <button type="button" id="btn-next-round" onclick="proceedToNextRound()" class="flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-lg transition">
+          Manche suivante <i class="fa-solid fa-arrow-right ml-1.5"></i>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== 6. ÉCRAN BILAN FINAL & MENTIONS HONORABLES ==================== -->
+  <section id="screen-final" class="screen flex-col items-center p-4 sm:p-6 overflow-y-auto custom-scrollbar">
+    <div class="w-full max-w-2xl flex flex-col gap-4 my-auto">
+      <div class="text-center bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold border border-amber-500/30 mb-2">
+          <i class="fa-solid fa-trophy"></i> <span id="final-rank-title">Chauffeur de Taxi Parisien</span>
+        </div>
+        <div id="final-total-score" class="text-4xl sm:text-5xl font-black text-white tracking-tight">19 420 <span class="text-lg font-bold text-slate-400">/ 25 000 pts</span></div>
+        <p id="final-subtitle" class="text-xs text-slate-400 mt-1.5">Excellente lecture des indices urbains !</p>
+      </div>
+
+      <!-- Podium Multijoueur -->
+      <div id="final-multi-section" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          <i class="fa-solid fa-ranking-star text-amber-400 mr-1.5"></i>Classement du Salon
+        </h3>
+        <ul id="final-multi-leaderboard" class="space-y-2"></ul>
+      </div>
+
+      <!-- Mentions Honorables -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
+          <i class="fa-solid fa-award text-blue-400 mr-1.5"></i>Mentions honorables
+        </h3>
+        <div id="final-honors-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5"></div>
+      </div>
+
+      <!-- Détail des manches -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Détail de vos manches</h3>
+        <ul id="final-rounds-breakdown" class="space-y-1.5 text-xs"></ul>
+      </div>
+
+      <!-- Actions finales -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pb-4">
+        <button type="button" onclick="openChallengeQrModal()" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-300">
+          <i class="fa-solid fa-qrcode mr-1"></i> QR Code Défi
+        </button>
+        <button type="button" onclick="shareFinalScoreText()" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-blue-300">
+          <i class="fa-solid fa-share-from-square mr-1"></i> Partager score
+        </button>
+        <button type="button" onclick="replaySameSettings()" class="py-3 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-extrabold text-white">
+          <i class="fa-solid fa-rotate-right mr-1"></i> Rejouer
+        </button>
+        <button type="button" onclick="showScreen('screen-home')" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200">
+          <i class="fa-solid fa-house mr-1"></i> Accueil
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== MODALE : REJOINDRE UNE PARTIE ==================== -->
+  <div id="modal-join" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold">Rejoindre une partie</h3>
+        <button type="button" onclick="closeModal('modal-join')" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-4">
+        <button type="button" onclick="closeModal('modal-join'); openQrScannerModal();" class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg">
+          <i class="fa-solid fa-camera"></i> Scanner le QR Code avec la caméra
+        </button>
+        <div class="relative flex py-1 items-center">
+          <div class="flex-grow border-t border-slate-800"></div>
+          <span class="flex-shrink mx-3 text-xs text-slate-500 uppercase">ou code manuel</span>
+          <div class="flex-grow border-t border-slate-800"></div>
+        </div>
+        <div>
+          <label for="input-join-code" class="block text-xs text-slate-400 mb-1.5">Code Salon (4 lettres) ou Code Défi</label>
+          <input id="input-join-code" type="text" placeholder="Ex: PARI ou paris@30:..."
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono uppercase text-white outline-none focus:border-blue-500 select-text" />
+        </div>
+        <button type="button" onclick="submitJoinCode()" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">
+          Rejoindre le salon
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODALE : SCANNER QR CODE CAMÉRA ==================== -->
+  <div id="modal-qr-scanner" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-base font-extrabold"><i class="fa-solid fa-qrcode text-emerald-400 mr-2"></i>Scanner le QR Code</h3>
+        <button type="button" onclick="closeQrScannerModal()" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden bg-black border border-slate-800"></div>
+      <p id="qr-scanner-status" class="text-xs text-center text-slate-400 mt-3">Placez le QR Code de l'hôte dans le cadre</p>
+    </div>
+  </div>
+
+  <!-- ==================== MODALE : QR CODE DÉFI FIN DE PARTIE ==================== -->
+  <div id="modal-challenge-qr" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-5 text-center shadow-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-base font-extrabold">Défier un ami (Mêmes lieux)</h3>
+        <button type="button" onclick="closeModal('modal-challenge-qr')" class="p-2 rounded-xl bg-slate-800 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="challenge-qrcode-box" class="bg-white p-3 rounded-2xl inline-block mx-auto my-2"></div>
+      <p class="text-xs text-slate-400 mt-2 mb-3">Scannez ce QR Code ou copiez le code manuel ci-dessous :</p>
+      <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2">
+        <input id="challenge-manual-code-input" type="text" readonly class="flex-1 bg-transparent font-mono text-[11px] text-slate-300 outline-none select-all" />
+        <button type="button" onclick="copyChallengeManualCode()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shrink-0">
+          Copier
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODALE : CONFIGURATION API & FIREBASE ==================== -->
+  <div id="modal-settings" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-lg w-full p-5 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-extrabold"><i class="fa-solid fa-sliders text-blue-400 mr-2"></i>Configuration API & Cloud</h3>
+        <button type="button" onclick="closeModal('modal-settings')" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <div>
+          <label for="input-mapillary-token" class="block font-bold text-slate-300 mb-1">1. Token Mapillary (Street View gratuit)</label>
+          <input id="input-mapillary-token" type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 font-mono text-slate-200 select-text" />
+          <div class="flex gap-2 mt-2">
+            <button type="button" onclick="resetDefaultMapillaryToken()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">Défaut</button>
+            <button type="button" onclick="saveMapillaryToken()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold">Sauvegarder Token</button>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-800 pt-4">
+          <div class="flex items-center justify-between mb-1">
+            <label for="input-firebase-config" class="block font-bold text-slate-300">2. Serveur Lobby Temps Réel (PinpointParis Live Cloud)</label>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">Intégré par défaut</span>
+          </div>
+          <p class="text-slate-400 mb-2">Votre projet Firebase <code class="text-blue-300">pinpointparis</code> est déjà préconfiguré pour tous les joueurs :</p>
+          <textarea id="input-firebase-config" rows="5"
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 font-mono text-[11px] text-slate-200 select-text"></textarea>
+          <div class="flex gap-2 mt-2">
+            <button type="button" onclick="resetDefaultFirebaseConfig()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">
+              PinpointParis (Défaut)
+            </button>
+            <button type="button" onclick="saveFirebaseConfig()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">
+              Appliquer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-full bg-slate-800 border border-slate-600 text-xs font-bold text-white shadow-xl"></div>
+
+  <!-- Firebase SDK Compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    /* ==================== CONFIGURATION & ÉTAT GLOBAL ==================== */
+    const DEFAULT_MAPILLARY_TOKEN = 'MLY|29468706819480746|07c60431267356042a597f6c50a40506';
+
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyBEcDEiJpLnr4IuuDO_Qj1UqvWyhlV74zU",
+      authDomain: "pinpointparis.firebaseapp.com",
+      projectId: "pinpointparis",
+      storageBucket: "pinpointparis.firebasestorage.app",
+      messagingSenderId: "1026686145112",
+      appId: "1:1026686145112:web:7618eb19a99a4f1a14702d",
+      measurementId: "G-88K7BRH13R"
+    };
+
+    const ZONES = {
+      paris: { name: 'Paris (75)', minLon: 2.255, maxLon: 2.415, minLat: 48.818, maxLat: 48.900, center: [48.8566, 2.3522], zoom: 12 },
+      petite_couronne: { name: 'Petite Couronne', minLon: 2.180, maxLon: 2.490, minLat: 48.770, maxLat: 48.940, center: [48.8566, 2.3400], zoom: 11 },
+      idf: { name: 'Grande Île-de-France', minLon: 1.950, maxLon: 2.750, minLat: 48.620, maxLat: 49.050, center: [48.8400, 2.3500], zoom: 10 }
+    };
+
+    const STATE = {
+      playerName: localStorage.getItem('pg_player_name') || '',
+      playerId: localStorage.getItem('pg_player_id') || ('p_' + Math.random().toString(36).substring(2, 10)),
+      mapillaryToken: localStorage.getItem('pg_mly_token') || DEFAULT_MAPILLARY_TOKEN,
+      zone: 'paris',
+      timerSeconds: 30,
+      totalRounds: 5,
+      mode: 'solo', // 'solo' | 'lobby'
+      roomCode: null,
+      isHost: false,
+      lobbyUnsubscribe: null,
+      lobbyData: null,
+      preloadedLobbyLocations: null,
+      locations: [],
+      currentRoundIndex: 0,
+      roundStartTime: 0,
+      timerInterval: null,
+      currentGuess: null,
+      roundHistory: [],
+      totalScore: 0,
+      db: null,
+      firebaseReady: false
+    };
+    localStorage.setItem('pg_player_id', STATE.playerId);
+
+    /* ==================== UTILITAIRES UI ==================== */
+    function showScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const target = document.getElementById(id);
+      if (target) target.classList.add('active');
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+    }
+
+    function openModal(id) {
+      const m = document.getElementById(id);
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+
+    function closeModal(id) {
+      const m = document.getElementById(id);
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+
+    function copyTextSafe(text, toastMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        if (toastMsg) showToast(toastMsg);
+      } catch (e) {
+        showToast('Copie effectuée');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function getPlayerName() {
+      const val = document.getElementById('input-player-name').value.trim();
+      const name = val || ('Parisien_' + STATE.playerId.slice(-3).toUpperCase());
+      STATE.playerName = name;
+      localStorage.setItem('pg_player_name', name);
+      return name;
+    }
+
+    /* ==================== SÉLECTEURS ACCUEIL ==================== */
+    function selectHomeZone(zone) {
+      STATE.zone = zone;
+      document.querySelectorAll('#home-zone-selector .zone-btn').forEach(btn => {
+        const active = btn.dataset.zone === zone;
+        btn.className = `zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border transition ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white'}`;
+      });
+    }
+
+    function selectHomeTimer(sec) {
+      STATE.timerSeconds = sec;
+      document.querySelectorAll('#home-timer-selector .timer-btn').forEach(btn => {
+        const active = Number(btn.dataset.timer) === sec;
+        btn.className = `timer-btn py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
+      });
+    }
+
+    function selectHomeRounds(n) {
+      STATE.totalRounds = n;
+      document.querySelectorAll('#home-rounds-selector .rounds-btn').forEach(btn => {
+        const active = Number(btn.dataset.rounds) === n;
+        btn.className = `rounds-btn py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
+      });
+    }
+
+    /* ==================== FIREBASE INIT ==================== */
+    function initFirebaseFromStorage() {
+      const raw = localStorage.getItem('pg_firebase_config');
+      let cfg = DEFAULT_FIREBASE_CONFIG;
+      if (raw) {
+        try { cfg = JSON.parse(raw); } catch (e) { cfg = DEFAULT_FIREBASE_CONFIG; }
+      }
+      try {
+        if (!firebase.apps.length) firebase.initializeApp(cfg);
+        firebase.auth().signInAnonymously().catch(() => {});
+        STATE.db = firebase.firestore();
+        STATE.firebaseReady = true;
+        const badge = document.getElementById('badge-firebase-status');
+        if (badge) {
+          badge.textContent = 'Live Cloud Actif';
+          badge.className = 'text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+        }
+      } catch (e) {
+        console.warn('Firebase init error:', e);
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('input-mapillary-token').value = STATE.mapillaryToken;
+      const savedFb = localStorage.getItem('pg_firebase_config');
+      document.getElementById('input-firebase-config').value = savedFb || JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2);
+      openModal('modal-settings');
+    }
+
+    function resetDefaultFirebaseConfig() {
+      localStorage.removeItem('pg_firebase_config');
+      document.getElementById('input-firebase-config').value = JSON.stringify(DEFAULT_FIREBASE_CONFIG, null, 2);
+      initFirebaseFromStorage();
+      showToast('Configuration PinpointParis restaurée');
+    }
+
+    function saveMapillaryToken() {
+      const val = document.getElementById('input-mapillary-token').value.trim();
+      if (val) {
+        STATE.mapillaryToken = val;
+        localStorage.setItem('pg_mly_token', val);
+        showToast('Token Mapillary enregistré');
+      }
+    }
+
+    function resetDefaultMapillaryToken() {
+      STATE.mapillaryToken = DEFAULT_MAPILLARY_TOKEN;
+      localStorage.setItem('pg_mly_token', DEFAULT_MAPILLARY_TOKEN);
+      document.getElementById('input-mapillary-token').value = DEFAULT_MAPILLARY_TOKEN;
+      showToast('Token par défaut restauré');
+    }
+
+    function saveFirebaseConfig() {
+      let raw = document.getElementById('input-firebase-config').value.trim();
+      if (!raw) return;
+      raw = raw.replace(/^[^{]*/, '').replace(/;?\s*$/, '');
+      raw = raw.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+      try {
+        const parsed = JSON.parse(raw);
+        localStorage.setItem('pg_firebase_config', JSON.stringify(parsed));
+        initFirebaseFromStorage();
+        closeModal('modal-settings');
+        showToast('Synchronisation Firebase activée !');
+      } catch (e) {
+        showToast('Format Firebase invalide. Vérifiez le JSON.');
+      }
+    }
+
+    /* ==================== MAPILLARY API SERVICE ==================== */
+    const MAPILLARY_SERVICE = {
+      async fetchLocations(zoneKey, count, onProgress) {
+        const zone = ZONES[zoneKey] || ZONES.paris;
+        const results = [];
+        const usedIds = new Set();
+        let attempts = 0;
+
+        while (results.length < count && attempts < count * 18) {
+          attempts++;
+          const lon = zone.minLon + Math.random() * (zone.maxLon - zone.minLon);
+          const lat = zone.minLat + Math.random() * (zone.maxLat - zone.minLat);
+          const delta = 0.0038;
+          const bbox = `${(lon - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lon + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
+
+          try {
+            const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(STATE.mapillaryToken)}&fields=id,computed_geometry,geometry,compass_angle,is_pano,thumb_2048_url,thumb_1024_url&bbox=${bbox}&limit=15`;
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const json = await res.json();
+            const items = (json.data || []).filter(img => !usedIds.has(img.id) && (img.thumb_2048_url || img.thumb_1024_url));
+            if (!items.length) continue;
+
+            const panos = items.filter(i => i.is_pano);
+            const pool = panos.length ? panos : items;
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            const coords = (chosen.computed_geometry || chosen.geometry)?.coordinates;
+            if (!coords) continue;
+
+            usedIds.add(chosen.id);
+            results.push({
+              id: chosen.id,
+              lat: coords[1],
+              lng: coords[0],
+              compass: chosen.compass_angle || 0,
+              isPano: !!chosen.is_pano,
+              imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url
+            });
+            if (onProgress) onProgress(results.length, count);
+          } catch (e) { /* retry */ }
+        }
+        return results;
+      },
+
+      async fetchByIds(ids) {
+        const out = [];
+        for (const id of ids) {
+          const url = `https://graph.mapillary.com/${id}?access_token=${encodeURIComponent(STATE.mapillaryToken)}&fields=id,computed_geometry,geometry,compass_angle,is_pano,thumb_2048_url,thumb_1024_url`;
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const chosen = await res.json();
+          const coords = (chosen.computed_geometry || chosen.geometry)?.coordinates;
+          if (!coords) continue;
+          out.push({
+            id: chosen.id,
+            lat: coords[1],
+            lng: coords[0],
+            compass: chosen.compass_angle || 0,
+            isPano: !!chosen.is_pano,
+            imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url
+          });
+        }
+        return out;
+      }
+    };
+
+    /* ==================== VISIONNEUSE 360° THREE.JS ==================== */
+    const VIEWER_360 = {
+      scene: null, camera: null, renderer: null, sphere: null,
+      lon: 0, lat: 0, fov: 75, isDragging: false, startX: 0, startY: 0, startLon: 0, startLat: 0,
+      baseCompass: 0, initialized: false,
+
+      init() {
+        if (this.initialized) return;
+        const canvas = document.getElementById('viewer-canvas');
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const geo = new THREE.SphereGeometry(500, 60, 40);
+        geo.scale(-1, 1, 1);
+        const mat = new THREE.MeshBasicMaterial({ color: 0x111827 });
+        this.sphere = new THREE.Mesh(geo, mat);
+        this.scene.add(this.sphere);
+
+        const onDown = (x, y) => { this.isDragging = true; this.startX = x; this.startY = y; this.startLon = this.lon; this.startLat = this.lat; };
+        const onMove = (x, y) => {
+          if (!this.isDragging) return;
+          this.lon = (this.startX - x) * 0.18 + this.startLon;
+          this.lat = Math.max(-85, Math.min(85, (y - this.startY) * 0.18 + this.startLat));
+        };
+        const onUp = () => { this.isDragging = false; };
+
+        canvas.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', onUp);
+
+        canvas.addEventListener('touchstart', e => { if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        canvas.addEventListener('touchmove', e => { if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
+        canvas.addEventListener('touchend', onUp);
+
+        canvas.addEventListener('wheel', e => {
+          this.fov = Math.max(30, Math.min(100, this.fov + e.deltaY * 0.04));
+          this.camera.fov = this.fov;
+          this.camera.updateProjectionMatrix();
+        }, { passive: true });
+
+        window.addEventListener('resize', () => {
+          this.camera.aspect = window.innerWidth / window.innerHeight;
+          this.camera.updateProjectionMatrix();
+          this.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        this.initialized = true;
+        const animate = () => {
+          requestAnimationFrame(animate);
+          const phi = THREE.MathUtils.degToRad(90 - this.lat);
+          const theta = THREE.MathUtils.degToRad(this.lon);
+          this.camera.lookAt(500 * Math.sin(phi) * Math.cos(theta), 500 * Math.cos(phi), 500 * Math.sin(phi) * Math.sin(theta));
+          this.renderer.render(this.scene, this.camera);
+          this.updateCompassUI();
+        };
+        animate();
+      },
+
+      loadLocation(loc) {
+        this.init();
+        this.lon = 0; this.lat = 0; this.fov = 75;
+        this.camera.fov = 75; this.camera.updateProjectionMatrix();
+        this.baseCompass = loc.compass || 0;
+
+        const canvas = document.getElementById('viewer-canvas');
+        const fallback = document.getElementById('viewer-fallback-img');
+
+        if (loc.isPano) {
+          canvas.classList.remove('hidden');
+          fallback.classList.add('hidden');
+          const loader = new THREE.TextureLoader();
+          loader.setCrossOrigin('anonymous');
+          loader.load(loc.imageUrl, tex => {
+            this.sphere.material.map = tex;
+            this.sphere.material.color.setHex(0xffffff);
+            this.sphere.material.needsUpdate = true;
+          });
+        } else {
+          canvas.classList.add('hidden');
+          fallback.classList.remove('hidden');
+          fallback.src = loc.imageUrl;
+        }
+      },
+
+      updateCompassUI() {
+        const heading = ((Math.round(this.baseCompass + this.lon) % 360) + 360) % 360;
+        const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
+        const label = dirs[Math.round(heading / 45) % 8];
+        document.getElementById('hud-compass-text').textContent = `${label} ${heading}°`;
+        document.getElementById('hud-compass-icon').style.transform = `rotate(${-heading}deg)`;
+      }
+    };
+
+    /* ==================== CARTES LEAFLET (OPENSTREETMAP FRANCE) ==================== */
+    let guessMap = null, guessMarker = null, resultMap = null;
+
+    function createOsmTileLayer() {
+      const layer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap France',
+        maxZoom: 20
+      });
+      layer.on('tileerror', () => {
+        layer.setUrl('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
+      });
+      return layer;
+    }
+
+    function initGuessMap(zoneKey) {
+      const z = ZONES[zoneKey] || ZONES.paris;
+      if (!guessMap) {
+        guessMap = L.map('guess-map', { zoomControl: false }).setView(z.center, z.zoom);
+        createOsmTileLayer().addTo(guessMap);
+        guessMap.on('click', e => {
+          STATE.currentGuess = { lat: e.latlng.lat, lng: e.latlng.lng };
+          if (guessMarker) guessMarker.setLatLng(e.latlng);
+          else guessMarker = L.marker(e.latlng).addTo(guessMap);
+
+          const btn = document.getElementById('btn-submit-guess');
+          btn.disabled = false;
+          btn.textContent = 'Valider ma position';
+          btn.className = 'w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg transition';
+        });
+      } else {
+        guessMap.setView(z.center, z.zoom);
+      }
+      if (guessMarker) { guessMap.removeLayer(guessMarker); guessMarker = null; }
+      STATE.currentGuess = null;
+      const btn = document.getElementById('btn-submit-guess');
+      btn.disabled = true;
+      btn.textContent = 'Place un repère sur la carte';
+      btn.className = 'w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-extrabold text-sm transition disabled:cursor-not-allowed';
+      setTimeout(() => guessMap.invalidateSize(), 150);
+    }
+
+    function toggleMobileMapDrawer(open) {
+      const drawer = document.getElementById('map-drawer');
+      if (open) {
+        drawer.classList.remove('translate-y-full');
+        setTimeout(() => guessMap && guessMap.invalidateSize(), 320);
+      } else {
+        drawer.classList.add('translate-y-full');
+      }
+    }
+
+    /* ==================== LOGIQUE DU LOBBY MULTIJOUEUR ==================== */
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      let code = '';
+      for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
+    }
+
+    async function createLobbyFlow() {
+      const name = getPlayerName();
+      STATE.mode = 'lobby';
+      STATE.isHost = true;
+      STATE.roomCode = generateRoomCode();
+
+      const initialLobby = {
+        code: STATE.roomCode,
+        hostId: STATE.playerId,
+        status: 'waiting',
+        zone: STATE.zone,
+        timer: STATE.timerSeconds,
+        rounds: STATE.totalRounds,
+        players: {
+          [STATE.playerId]: { id: STATE.playerId, name, isHost: true, totalScore: 0, guesses: {} }
+        },
+        locationIds: []
+      };
+
+      if (STATE.firebaseReady && STATE.db) {
+        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).set(initialLobby);
+        listenToLobby(STATE.roomCode);
+      } else {
+        STATE.lobbyData = initialLobby;
+        renderLobbyUI();
+      }
+      showScreen('screen-lobby');
+    }
+
+    function listenToLobby(code) {
+      if (STATE.lobbyUnsubscribe) STATE.lobbyUnsubscribe();
+      STATE.lobbyUnsubscribe = STATE.db.collection('parisguessr_rooms').doc(code).onSnapshot(doc => {
+        if (!doc.exists) return;
+        const data = doc.data();
+        STATE.lobbyData = data;
+        STATE.zone = data.zone;
+        STATE.timerSeconds = data.timer;
+        STATE.totalRounds = data.rounds;
+
+        if (data.status === 'playing' && document.getElementById('screen-lobby').classList.contains('active')) {
+          startMultiplayerGameFromIds(data.locationIds);
+        } else {
+          renderLobbyUI();
+        }
+      });
+    }
+
+    function renderLobbyUI() {
+      const data = STATE.lobbyData;
+      if (!data) return;
+      document.getElementById('lobby-room-code').textContent = data.code;
+      const manualRoomEl = document.getElementById('lobby-manual-room-code');
+      if (manualRoomEl) manualRoomEl.textContent = data.code;
+      document.getElementById('lobby-role-badge').innerHTML = STATE.isHost
+        ? '<i class="fa-solid fa-crown mr-1"></i>Chef'
+        : '<i class="fa-solid fa-user mr-1"></i>Invité';
+
+      const qrBox = document.getElementById('lobby-qrcode');
+      qrBox.innerHTML = '';
+      const invitePayload = `${window.location.origin}${window.location.pathname}#room=${data.code}`;
+      new QRCode(qrBox, { text: invitePayload, width: 96, height: 96 });
+
+      const players = Object.values(data.players || {});
+      document.getElementById('lobby-players-count').textContent = players.length;
+      const list = document.getElementById('lobby-players-list');
+      list.innerHTML = players.map(p => `
+        <li class="flex items-center justify-between bg-slate-950/80 border border-slate-800 px-3 py-2 rounded-xl">
+          <div class="flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-lg bg-blue-600/25 text-blue-300 font-bold text-xs flex items-center justify-center">
+              ${p.name.slice(0, 2).toUpperCase()}
+            </span>
+            <span class="text-sm font-bold text-white">${p.name}</span>
+          </div>
+          ${p.isHost ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">Chef</span>' : '<span class="text-[10px] text-emerald-400">Prêt</span>'}
+        </li>
+      `).join('');
+
+      document.querySelectorAll('.lobby-zone-btn').forEach(b => {
+        const active = b.dataset.zone === data.zone;
+        b.disabled = !STATE.isHost;
+        b.className = `lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-700 bg-slate-950 text-slate-400'}`;
+      });
+      document.querySelectorAll('.lobby-timer-btn').forEach(b => {
+        const active = Number(b.dataset.timer) === data.timer;
+        b.disabled = !STATE.isHost;
+        b.className = `lobby-timer-btn py-2 rounded-xl text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
+      });
+      document.querySelectorAll('.lobby-rounds-btn').forEach(b => {
+        const active = Number(b.dataset.rounds) === data.rounds;
+        b.disabled = !STATE.isHost;
+        b.className = `lobby-rounds-btn py-2 rounded-xl text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
+      });
+
+      document.getElementById('btn-lobby-start').classList.toggle('hidden', !STATE.isHost);
+      document.getElementById('lobby-guest-wait').classList.toggle('hidden', STATE.isHost);
+      document.getElementById('lobby-firebase-hint').classList.toggle('hidden', STATE.firebaseReady);
+    }
+
+    async function updateLobbySetting(key, value) {
+      if (!STATE.isHost) return;
+      if (key === 'zone') STATE.zone = value;
+      if (key === 'timer') STATE.timerSeconds = value;
+      if (key === 'rounds') STATE.totalRounds = value;
+      STATE.preloadedLobbyLocations = null;
+      const seedInput = document.getElementById('lobby-manual-seed-input');
+      if (seedInput) seedInput.value = '';
+
+      if (STATE.firebaseReady && STATE.db && STATE.roomCode) {
+        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({ [key]: value });
+      } else {
+        STATE.lobbyData[key] = value;
+        renderLobbyUI();
+      }
+    }
+
+    function copyLobbyInvite() {
+      const url = `${window.location.origin}${window.location.pathname}#room=${STATE.roomCode}`;
+      copyTextSafe(url, `Lien du salon ${STATE.roomCode} copié !`);
+    }
+
+    function copyManualRoomCode() {
+      if (!STATE.roomCode) return;
+      copyTextSafe(STATE.roomCode, `Code salon "${STATE.roomCode}" copié !`);
+    }
+
+    async function generateAndCopyLobbyManualSeed() {
+      const btn = document.getElementById('btn-generate-manual-seed');
+      const input = document.getElementById('lobby-manual-seed-input');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Tirage...';
+      }
+      try {
+        const locs = await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds);
+        if (!locs.length) {
+          showToast('Erreur Mapillary lors de la génération du code.');
+          return;
+        }
+        STATE.preloadedLobbyLocations = locs;
+        const seed = `${STATE.zone}@${STATE.timerSeconds}:${locs.map(l => l.id).join(',')}`;
+        if (input) input.value = seed;
+        copyTextSafe(seed, 'Code défi manuel copié ! Partagez-le à vos potes.');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Générer & Copier';
+        }
+      }
+    }
+
+    function submitHomeManualCode() {
+      const raw = document.getElementById('input-home-manual-code').value.trim();
+      if (!raw) {
+        showToast('Entrez un code salon ou un code défi.');
+        return;
+      }
+      handleScannedOrEnteredCode(raw);
+    }
+
+    function leaveLobby() {
+      if (STATE.lobbyUnsubscribe) STATE.lobbyUnsubscribe();
+      STATE.mode = 'solo';
+      showScreen('screen-home');
+    }
+
+    function openJoinModal() {
+      openModal('modal-join');
+    }
+
+    async function submitJoinCode() {
+      const raw = document.getElementById('input-join-code').value.trim();
+      if (!raw) return;
+      closeModal('modal-join');
+      await handleScannedOrEnteredCode(raw);
+    }
+
+    async function handleScannedOrEnteredCode(raw) {
+      const name = getPlayerName();
+      const roomMatch = raw.match(/room=([A-Z]{4})/i) || (/^[A-Z]{4}$/i.test(raw) ? [null, raw.toUpperCase()] : null);
+      if (roomMatch) {
+        const code = roomMatch[1].toUpperCase();
+        if (!STATE.firebaseReady || !STATE.db) {
+          showToast('Configurez Firebase dans les paramètres (⚙️) pour rejoindre un salon en direct.');
+          return;
+        }
+        const ref = STATE.db.collection('parisguessr_rooms').doc(code);
+        const snap = await ref.get();
+        if (!snap.exists) { showToast('Salon introuvable : ' + code); return; }
+
+        STATE.mode = 'lobby';
+        STATE.isHost = false;
+        STATE.roomCode = code;
+        await ref.update({
+          [`players.${STATE.playerId}`]: { id: STATE.playerId, name, isHost: false, totalScore: 0, guesses: {} }
+        });
+        listenToLobby(code);
+        showScreen('screen-lobby');
+        return;
+      }
+
+      const seedMatch = raw.match(/([a-z_]+)@(\d+):([0-9,]+)/i);
+      if (seedMatch) {
+        STATE.mode = 'solo';
+        STATE.zone = seedMatch[1];
+        STATE.timerSeconds = Number(seedMatch[2]);
+        const ids = seedMatch[3].split(',').filter(Boolean);
+        STATE.totalRounds = ids.length;
+        showScreen('screen-loading');
+        document.getElementById('loading-status').textContent = 'Chargement du défi partagé...';
+        const locs = await MAPILLARY_SERVICE.fetchByIds(ids);
+        beginLoadedGame(locs);
+      } else {
+        showToast('Code non reconnu');
+      }
+    }
+
+    /* ==================== SCANNER QR CODE CAMÉRA ==================== */
+    let html5QrCode = null;
+    function openQrScannerModal() {
+      openModal('modal-qr-scanner');
+      setTimeout(() => {
+        html5QrCode = new Html5Qrcode('qr-reader');
+        html5QrCode.start(
+          { facingMode: 'environment' },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          decodedText => {
+            closeQrScannerModal();
+            handleScannedOrEnteredCode(decodedText);
+          },
+          () => {}
+        ).catch(() => {
+          document.getElementById('qr-scanner-status').textContent = 'Caméra indisponible ou permission refusée.';
+        });
+      }, 200);
+    }
+
+    function closeQrScannerModal() {
+      if (html5QrCode) {
+        html5QrCode.stop().catch(() => {});
+        html5QrCode = null;
+      }
+      closeModal('modal-qr-scanner');
+    }
+
+    /* ==================== DÉROULEMENT D'UNE PARTIE ==================== */
+    async function startSoloQuickGame() {
+      getPlayerName();
+      STATE.mode = 'solo';
+      await launchLocationSearchAndPlay();
+    }
+
+    async function hostStartLobbyGame() {
+      showScreen('screen-loading');
+      const locs = (STATE.preloadedLobbyLocations && STATE.preloadedLobbyLocations.length === STATE.totalRounds)
+        ? STATE.preloadedLobbyLocations
+        : await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds, (done, total) => {
+            document.getElementById('loading-status').textContent = `Recherche de panoramas 360° (${done}/${total})`;
+            document.getElementById('loading-progress-bar').style.width = `${(done / total) * 100}%`;
+          });
+
+      if (!locs.length) {
+        showToast('Impossible de récupérer des photos Mapillary pour le moment.');
+        showScreen('screen-home');
+        return;
+      }
+
+      if (STATE.firebaseReady && STATE.db && STATE.roomCode) {
+        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({
+          status: 'playing',
+          locationIds: locs.map(l => l.id)
+        });
+      }
+      beginLoadedGame(locs);
+    }
+
+    async function startMultiplayerGameFromIds(ids) {
+      showScreen('screen-loading');
+      document.getElementById('loading-status').textContent = 'Synchronisation des panoramas du salon...';
+      const locs = await MAPILLARY_SERVICE.fetchByIds(ids);
+      beginLoadedGame(locs);
+    }
+
+    async function launchLocationSearchAndPlay() {
+      showScreen('screen-loading');
+      document.getElementById('loading-progress-bar').style.width = '5%';
+      const locs = await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds, (done, total) => {
+        document.getElementById('loading-status').textContent = `Recherche de panoramas 360° sur Mapillary (${done}/${total})`;
+        document.getElementById('loading-progress-bar').style.width = `${(done / total) * 100}%`;
+      });
+
+      if (!locs.length) {
+        showToast('Aucune image trouvée sur Mapillary. Réessayez.');
+        showScreen('screen-home');
+        return;
+      }
+      beginLoadedGame(locs);
+    }
+
+    function beginLoadedGame(locs) {
+      STATE.locations = locs;
+      STATE.totalRounds = locs.length;
+      STATE.currentRoundIndex = 0;
+      STATE.roundHistory = [];
+      STATE.totalScore = 0;
+      startRound(0);
+    }
+
+    function startRound(index) {
+      STATE.currentRoundIndex = index;
+      const loc = STATE.locations[index];
+      document.getElementById('hud-round').textContent = `${index + 1} / ${STATE.totalRounds}`;
+      document.getElementById('hud-score').textContent = STATE.totalScore.toLocaleString('fr-FR');
+      toggleMobileMapDrawer(false);
+
+      showScreen('screen-game');
+      VIEWER_360.loadLocation(loc);
+      initGuessMap(STATE.zone);
+
+      STATE.roundStartTime = performance.now();
+      startRoundTimer();
+    }
+
+    function startRoundTimer() {
+      clearInterval(STATE.timerInterval);
+      const timerEl = document.getElementById('hud-timer');
+      if (!STATE.timerSeconds || STATE.timerSeconds <= 0) {
+        timerEl.textContent = '∞';
+        return;
+      }
+      let remaining = STATE.timerSeconds;
+      const format = s => `00:${String(Math.max(0, s)).padStart(2, '0')}`;
+      timerEl.textContent = format(remaining);
+      timerEl.classList.remove('text-rose-500');
+
+      STATE.timerInterval = setInterval(() => {
+        remaining--;
+        timerEl.textContent = format(remaining);
+        if (remaining <= 5) timerEl.classList.add('text-rose-500');
+        if (remaining <= 0) {
+          clearInterval(STATE.timerInterval);
+          submitPlayerGuess(true);
+        }
+      }, 1000);
+    }
+
+    function haversineMeters(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = d => d * Math.PI / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function computeScore(distanceMeters) {
+      if (distanceMeters <= 35) return 5000;
+      const scale = STATE.zone === 'paris' ? 2200 : (STATE.zone === 'petite_couronne' ? 5000 : 14000);
+      return Math.max(0, Math.round(5000 * Math.exp(-distanceMeters / scale)));
+    }
+
+    async function submitPlayerGuess(timedOut = false) {
+      clearInterval(STATE.timerInterval);
+      const elapsedSec = Number(((performance.now() - STATE.roundStartTime) / 1000).toFixed(1));
+      const target = STATE.locations[STATE.currentRoundIndex];
+
+      let dist = null, pts = 0;
+      if (STATE.currentGuess) {
+        dist = Math.round(haversineMeters(STATE.currentGuess.lat, STATE.currentGuess.lng, target.lat, target.lng));
+        pts = computeScore(dist);
+      }
+
+      STATE.totalScore += pts;
+      const entry = {
+        round: STATE.currentRoundIndex + 1,
+        target,
+        guess: STATE.currentGuess,
+        distance: dist,
+        timeSec: elapsedSec,
+        points: pts,
+        timedOut
+      };
+      STATE.roundHistory.push(entry);
+
+      if (STATE.mode === 'lobby' && STATE.firebaseReady && STATE.db && STATE.roomCode) {
+        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({
+          [`players.${STATE.playerId}.totalScore`]: STATE.totalScore,
+          [`players.${STATE.playerId}.guesses.r${STATE.currentRoundIndex}`]: {
+            lat: STATE.currentGuess?.lat || null,
+            lng: STATE.currentGuess?.lng || null,
+            distance: dist,
+            timeSec: elapsedSec,
+            points: pts
+          }
+        });
+      }
+
+      showRoundResult(entry);
+    }
+
+    function showRoundResult(entry) {
+      showScreen('screen-round-result');
+      document.getElementById('res-round-num').textContent = entry.round;
+      document.getElementById('res-round-total').textContent = STATE.totalRounds;
+      document.getElementById('res-distance').textContent = entry.distance !== null
+        ? (entry.distance >= 1000 ? (entry.distance / 1000).toFixed(2) + ' km' : entry.distance + ' m')
+        : 'Temps écoulé';
+      document.getElementById('res-time').textContent = `${entry.timeSec.toFixed(1).replace('.', ',')} s`;
+      document.getElementById('res-points').textContent = `+${entry.points.toLocaleString('fr-FR')}`;
+      document.getElementById('res-mapillary-link').href = `https://www.mapillary.com/app/?pKey=${entry.target.id}&focus=photo`;
+
+      const nextBtn = document.getElementById('btn-next-round');
+      nextBtn.innerHTML = entry.round >= STATE.totalRounds
+        ? 'Voir le podium final <i class="fa-solid fa-trophy ml-1.5"></i>'
+        : 'Manche suivante <i class="fa-solid fa-arrow-right ml-1.5"></i>';
+
+      if (resultMap) { resultMap.remove(); resultMap = null; }
+      resultMap = L.map('result-map').setView([entry.target.lat, entry.target.lng], 14);
+      createOsmTileLayer().addTo(resultMap);
+
+      const targetIcon = L.divIcon({
+        html: '<div class="w-6 h-6 rounded-full bg-emerald-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs"><i class="fa-solid fa-flag-checkered"></i></div>',
+        className: '', iconSize: [24, 24], iconAnchor: [12, 12]
+      });
+      L.marker([entry.target.lat, entry.target.lng], { icon: targetIcon }).addTo(resultMap).bindPopup('Position exacte');
+
+      const bounds = [[entry.target.lat, entry.target.lng]];
+      if (entry.guess) {
+        L.marker([entry.guess.lat, entry.guess.lng]).addTo(resultMap).bindPopup('Votre repère');
+        L.polyline([[entry.target.lat, entry.target.lng], [entry.guess.lat, entry.guess.lng]], { color: '#f59e0b', weight: 3, dashArray: '6,6' }).addTo(resultMap);
+        bounds.push([entry.guess.lat, entry.guess.lng]);
+      }
+
+      const multiBox = document.getElementById('res-multi-board');
+      if (STATE.mode === 'lobby' && STATE.lobbyData?.players) {
+        multiBox.classList.remove('hidden');
+        const list = document.getElementById('res-multi-list');
+        const players = Object.values(STATE.lobbyData.players);
+        list.innerHTML = players.map(p => {
+          const g = p.guesses?.[`r${STATE.currentRoundIndex}`];
+          const dStr = g?.distance != null ? `${g.distance} m` : 'En cours...';
+          return `<li class="flex justify-between py-1 border-b border-slate-800/60">
+            <span class="font-bold text-white">${p.name}</span>
+            <span class="text-slate-300">${dStr} • <strong class="text-amber-400">+${g?.points || 0} pts</strong></span>
+          </li>`;
+        }).join('');
+      } else {
+        multiBox.classList.add('hidden');
+      }
+
+      setTimeout(() => {
+        resultMap.invalidateSize();
+        if (bounds.length > 1) resultMap.fitBounds(bounds, { padding: [45, 45] });
+      }, 150);
+    }
+
+    function proceedToNextRound() {
+      if (STATE.currentRoundIndex + 1 < STATE.totalRounds) {
+        startRound(STATE.currentRoundIndex + 1);
+      } else {
+        showFinalSummary();
+      }
+    }
+
+    /* ==================== BILAN FINAL & MENTIONS HONORABLES ==================== */
+    function showFinalSummary() {
+      showScreen('screen-final');
+      const maxPts = STATE.totalRounds * 5000;
+      document.getElementById('final-total-score').innerHTML = `${STATE.totalScore.toLocaleString('fr-FR')} <span class="text-lg font-bold text-slate-400">/ ${maxPts.toLocaleString('fr-FR')} pts</span>`;
+
+      const ratio = STATE.totalScore / maxPts;
+      const rank = ratio >= 0.85 ? 'Inspecteur de la Voirie Parisienne'
+        : ratio >= 0.65 ? 'Chauffeur de Taxi Parisien'
+        : ratio >= 0.40 ? 'Habitué du Métro & RER'
+        : 'Touriste sur les Champs-Élysées';
+      document.getElementById('final-rank-title').textContent = rank;
+
+      const validRounds = STATE.roundHistory.filter(r => r.distance !== null);
+      const fastest = [...STATE.roundHistory].sort((a, b) => a.timeSec - b.timeSec)[0];
+      const closest = validRounds.length ? [...validRounds].sort((a, b) => a.distance - b.distance)[0] : null;
+      const worst = validRounds.length ? [...validRounds].sort((a, b) => b.distance - a.distance)[0] : STATE.roundHistory[0];
+
+      const honorsHtml = `
+        <div class="bg-slate-950/90 border border-blue-500/30 rounded-xl p-3">
+          <div class="text-[10px] font-bold uppercase text-blue-400"><i class="fa-solid fa-bolt mr-1"></i>Flash du Périph</div>
+          <div class="text-sm font-extrabold text-white mt-0.5">${fastest ? fastest.timeSec.toFixed(1) + ' s' : '-'}</div>
+          <div class="text-[11px] text-slate-400">Manche #${fastest?.round || 1} (Plus rapide)</div>
+        </div>
+        <div class="bg-slate-950/90 border border-emerald-500/30 rounded-xl p-3">
+          <div class="text-[10px] font-bold uppercase text-emerald-400"><i class="fa-solid fa-crosshairs mr-1"></i>Sniper Haussmann</div>
+          <div class="text-sm font-extrabold text-white mt-0.5">${closest ? closest.distance + ' m' : 'Aucun tir'}</div>
+          <div class="text-[11px] text-slate-400">${closest ? 'Manche #' + closest.round : 'Hors cible'}</div>
+        </div>
+        <div class="bg-slate-950/90 border border-rose-500/30 rounded-xl p-3">
+          <div class="text-[10px] font-bold uppercase text-rose-400"><i class="fa-solid fa-compass mr-1"></i>Touriste Égaré</div>
+          <div class="text-sm font-extrabold text-white mt-0.5">${worst?.distance != null ? (worst.distance >= 1000 ? (worst.distance / 1000).toFixed(1) + ' km' : worst.distance + ' m') : 'Temps expiré'}</div>
+          <div class="text-[11px] text-slate-400">Manche #${worst?.round || 1} (Plus à la ramasse)</div>
+        </div>
+      `;
+      document.getElementById('final-honors-grid').innerHTML = honorsHtml;
+
+      document.getElementById('final-rounds-breakdown').innerHTML = STATE.roundHistory.map(r => `
+        <li class="flex items-center justify-between bg-slate-950/70 px-3 py-2 rounded-xl border border-slate-800/80">
+          <span>Manche <strong>#${r.round}</strong> • ${r.timeSec.toFixed(1)}s</span>
+          <span>${r.distance !== null ? r.distance + ' m' : 'Expiré'} — <strong class="text-amber-400">${r.points} pts</strong></span>
+        </li>
+      `).join('');
+
+      const multiSec = document.getElementById('final-multi-section');
+      if (STATE.mode === 'lobby' && STATE.lobbyData?.players) {
+        multiSec.classList.remove('hidden');
+        const sorted = Object.values(STATE.lobbyData.players).sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+        document.getElementById('final-multi-leaderboard').innerHTML = sorted.map((p, idx) => `
+          <li class="flex items-center justify-between bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800">
+            <span class="font-extrabold text-sm">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1)} ${p.name}</span>
+            <span class="font-black text-amber-400">${(p.totalScore || 0).toLocaleString('fr-FR')} pts</span>
+          </li>
+        `).join('');
+      } else {
+        multiSec.classList.add('hidden');
+      }
+    }
+
+    function openChallengeQrModal() {
+      const seed = `${STATE.zone}@${STATE.timerSeconds}:${STATE.locations.map(l => l.id).join(',')}`;
+      const box = document.getElementById('challenge-qrcode-box');
+      box.innerHTML = '';
+      new QRCode(box, { text: seed, width: 180, height: 180 });
+      const manualInput = document.getElementById('challenge-manual-code-input');
+      if (manualInput) manualInput.value = seed;
+      openModal('modal-challenge-qr');
+    }
+
+    function copyChallengeManualCode() {
+      const val = document.getElementById('challenge-manual-code-input')?.value;
+      if (val) copyTextSafe(val, 'Code défi manuel copié !');
+    }
+
+    function shareFinalScoreText() {
+      const maxPts = STATE.totalRounds * 5000;
+      const text = `🗼 PinPointParis — ${STATE.playerName}\n🏆 Score : ${STATE.totalScore.toLocaleString('fr-FR')} / ${maxPts.toLocaleString('fr-FR')} pts\nDéfi : ${STATE.zone}@${STATE.timerSeconds}:${STATE.locations.map(l => l.id).join(',')}`;
+      copyTextSafe(text, 'Score & code défi copiés !');
+    }
+
+    function replaySameSettings() {
+      if (STATE.mode === 'lobby') showScreen('screen-lobby');
+      else launchLocationSearchAndPlay();
+    }
+
+    /* ==================== DÉMARRAGE ==================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      if (STATE.playerName) document.getElementById('input-player-name').value = STATE.playerName;
+      initFirebaseFromStorage();
+
+      const hash = window.location.hash;
+      if (hash.includes('room=') || hash.includes('seed=')) {
+        handleScannedOrEnteredCode(decodeURIComponent(hash.slice(1)));
+      }
+    });
+  </script>
+</body>
+</html>
