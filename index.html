@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>PinPointParis — Party Live & Mapillary 360°</title>
+  <title>PinPointParis – Party Live & Mapillary 360°</title>
 
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -14,11 +14,12 @@
         extend: {
           fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
           colors: {
-            paris: {
-              dark: '#090d16',
-              card: '#111827',
-              accent: '#3b82f6',
-              gold: '#f59e0b'
+            brand: {
+              50: '#eef2ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca'
             }
           }
         }
@@ -26,542 +27,621 @@
     };
   </script>
 
-  <!-- Google Fonts Inter -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet" />
 
-  <!-- Leaflet CSS & JS (OpenStreetMap France) -->
+  <!-- Leaflet CSS & JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Three.js pour la vue panoramique 360° -->
+  <!-- Three.js pour rendu 360° équirectangulaire fluide -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-  <!-- QR Code Generator & Caméra Scanner -->
+  <!-- QRCode.js & html5-qrcode -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
-
-  <style>
-    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body, html {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      background-color: #090d16; color: #f8fafc;
-      font-family: 'Inter', system-ui, sans-serif;
-      overflow: hidden; user-select: none;
-    }
-    .screen { display: none; width: 100%; height: 100%; }
-    .screen.active { display: flex; }
-    #viewer-canvas { touch-action: none; cursor: grab; }
-    #viewer-canvas:active { cursor: grabbing; }
-    .leaflet-container { background: #1e293b !important; font-family: inherit !important; }
-    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
-  </style>
-</head>
-<body class="bg-paris-dark text-slate-100 antialiased">
-
-  <!-- ==================== 1. ÉCRAN D'ACCUEIL ==================== -->
-  <section id="screen-home" class="screen active flex-col items-center justify-between p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-    <!-- Top bar -->
-    <header class="w-full max-w-2xl flex items-center justify-between pt-1">
-      <div class="flex items-center gap-2.5">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-rose-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <i class="fa-solid fa-location-crosshairs text-white text-lg"></i>
-        </div>
-        <div>
-          <h1 class="text-xl font-extrabold tracking-tight leading-none">PinPoint<span class="text-blue-400">Paris</span></h1>
-          <span class="text-[11px] text-slate-400 font-medium">Mapillary 360° • Party Edition</span>
-        </div>
-      </div>
-
-      <span id="badge-firebase-status" class="text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold">
-        Live Cloud Actif
-      </span>
-    </header>
-
-    <!-- Centre : Identité & Actions Multijoueur / Solo -->
-    <main class="w-full max-w-xl my-auto py-4 flex flex-col gap-4">
-      <!-- Pseudo joueur -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
-        <label for="input-player-name" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-          <i class="fa-solid fa-user-astronaut text-blue-400 mr-1.5"></i>Ton pseudo de joueur
-        </label>
-        <input id="input-player-name" type="text" maxlength="18" placeholder="Ex: Léo, Chloé, Zizou75..."
-          class="w-full bg-slate-950 border border-slate-700/80 focus:border-blue-500 rounded-xl px-4 py-3 text-base font-semibold text-white outline-none transition select-text" />
-      </div>
-
-      <!-- Boutons Principaux : Créer / Rejoindre -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button type="button" onclick="createLobbyFlow()" class="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 p-4 text-left shadow-lg shadow-blue-600/20 transition active:scale-[0.98]">
-          <div class="flex items-center justify-between mb-2">
-            <span class="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white text-lg">
-              <i class="fa-solid fa-crown"></i>
-            </span>
-            <span class="text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full">Hôte</span>
-          </div>
-          <div class="text-lg font-extrabold text-white">Créer une partie</div>
-          <div class="text-xs text-blue-100/85 mt-0.5">Ouvre un lobby avec QR Code & réglages</div>
-        </button>
-
-        <button type="button" onclick="openJoinModal()" class="group rounded-2xl bg-slate-900 hover:bg-slate-800/90 border border-slate-700/80 p-4 text-left shadow-lg transition active:scale-[0.98]">
-          <div class="flex items-center justify-between mb-2">
-            <span class="w-10 h-10 rounded-xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center text-lg">
-              <i class="fa-solid fa-qrcode"></i>
-            </span>
-            <span class="text-[11px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-300 px-2.5 py-0.5 rounded-full">Invité</span>
-          </div>
-          <div class="text-lg font-extrabold text-white">Rejoindre</div>
-          <div class="text-xs text-slate-400 mt-0.5">Scanner le QR Code ou entrer un code</div>
-        </button>
-      </div>
-
-      <!-- Boutons secondaires : Scanner caméra direct + Entraînement Solo -->
-      <div class="grid grid-cols-2 gap-3">
-        <button type="button" onclick="openQrScannerModal()" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 text-sm font-semibold text-emerald-300 transition">
-          <i class="fa-solid fa-camera"></i> Scanner QR Code
-        </button>
-        <button type="button" onclick="startSoloQuickGame()" class="flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/70 text-sm font-semibold text-slate-200 transition">
-          <i class="fa-solid fa-play text-blue-400"></i> Partie Solo Rapide
-        </button>
-      </div>
-
-      <!-- Barre de saisie directe de code manuel -->
-      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3 flex items-center gap-2 shadow-lg">
-        <i class="fa-solid fa-keyboard text-slate-400 pl-2"></i>
-        <input id="input-home-manual-code" type="text" placeholder="Entrer un code salon (PARI) ou défi (paris@30:...)"
-          onkeydown="if(event.key==='Enter') submitHomeManualCode()"
-          class="flex-1 bg-transparent text-xs sm:text-sm font-mono text-white placeholder-slate-500 outline-none select-text" />
-        <button type="button" onclick="submitHomeManualCode()" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-extrabold text-white shrink-0 transition">
-          Rejoindre
-        </button>
-      </div>
-
-      <!-- Paramètres rapides (pour Solo ou défaut) -->
-      <div class="bg-slate-900/70 border border-slate-800/90 rounded-2xl p-4 flex flex-col gap-3">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Terrain par défaut</span>
-        </div>
-
-        <div class="grid grid-cols-3 gap-2" id="home-zone-selector">
-          <button type="button" data-zone="paris" onclick="selectHomeZone('paris')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/20 text-white transition">
-            Paris (75)
-          </button>
-          <button type="button" data-zone="petite_couronne" onclick="selectHomeZone('petite_couronne')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white transition">
-            Petite Couronne
-          </button>
-          <button type="button" data-zone="idf" onclick="selectHomeZone('idf')" class="zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white transition">
-            Grande IDF
-          </button>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3 pt-1">
-          <div>
-            <span class="block text-[11px] text-slate-400 mb-1">Chrono / manche</span>
-            <div class="grid grid-cols-4 gap-1" id="home-timer-selector">
-              <button type="button" data-timer="30" onclick="selectHomeTimer(30)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white">30s</button>
-              <button type="button" data-timer="60" onclick="selectHomeTimer(60)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">60s</button>
-              <button type="button" data-timer="120" onclick="selectHomeTimer(120)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">2m</button>
-              <button type="button" data-timer="0" onclick="selectHomeTimer(0)" class="timer-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">∞</button>
-            </div>
-          </div>
-          <div>
-            <span class="block text-[11px] text-slate-400 mb-1">Manches</span>
-            <div class="grid grid-cols-3 gap-1" id="home-rounds-selector">
-              <button type="button" data-rounds="3" onclick="selectHomeRounds(3)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">3</button>
-              <button type="button" data-rounds="5" onclick="selectHomeRounds(5)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white">5</button>
-              <button type="button" data-rounds="10" onclick="selectHomeRounds(10)" class="rounds-btn py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-400">10</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
-
-    <footer class="text-center text-[11px] text-slate-500 pb-1">
-      Propulsé par Mapillary API v4 & OpenStreetMap France • 100 % Gratuit
-    </footer>
-  </section>
-
-  <!-- ==================== 2. ÉCRAN LOBBY MULTIJOUEUR ==================== -->
-  <section id="screen-lobby" class="screen flex-col items-center justify-between p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-    <div class="w-full max-w-2xl flex items-center justify-between">
-      <button type="button" onclick="leaveLobby()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 flex items-center gap-1.5">
-        <i class="fa-solid fa-arrow-left"></i> Quitter
-      </button>
-      <div class="text-center">
-        <span class="text-[10px] uppercase tracking-widest text-slate-400 block">Code du Salon</span>
-        <div class="flex items-center gap-2 justify-center">
-          <span id="lobby-room-code" class="text-2xl font-black tracking-widest text-blue-400">PARI</span>
-          <button type="button" onclick="copyLobbyInvite()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs" title="Copier le code / lien">
-            <i class="fa-regular fa-copy"></i>
-          </button>
-        </div>
-      </div>
-      <span id="lobby-role-badge" class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-        <i class="fa-solid fa-crown mr-1"></i>Chef
-      </span>
-    </div>
-
-    <div class="w-full max-w-2xl my-auto py-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Colonne gauche : QR Code + Code Manuel + Liste des joueurs -->
-      <div class="flex flex-col gap-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center gap-4">
-          <div id="lobby-qrcode" class="bg-white p-2 rounded-xl shrink-0"></div>
-          <div class="text-xs">
-            <div class="font-bold text-white text-sm mb-1">Inviter vos potes</div>
-            <p class="text-slate-400 leading-relaxed">Scannez ce QR Code depuis la caméra du jeu ou partagez le code manuel ci-dessous.</p>
-            <button type="button" onclick="copyLobbyInvite()" class="mt-2 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 font-semibold border border-blue-500/30 transition">
-              <i class="fa-solid fa-share-nodes mr-1"></i> Copier le lien
-            </button>
-          </div>
-        </div>
-
-        <!-- Encart Code Manuel à partager -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
-              <i class="fa-solid fa-key text-amber-400 mr-1.5"></i>Code manuel à partager
-            </span>
-            <span class="text-[10px] text-slate-500">Sans caméra</span>
-          </div>
-
-          <!-- Code Salon 4 lettres -->
-          <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-            <div>
-              <span class="block text-[10px] uppercase text-slate-500">Code Salon (Live Firebase)</span>
-              <span id="lobby-manual-room-code" class="text-xl font-black font-mono tracking-[0.25em] text-blue-400">PARI</span>
-            </div>
-            <button type="button" onclick="copyManualRoomCode()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition">
-              <i class="fa-regular fa-copy mr-1"></i> Copier
-            </button>
-          </div>
-
-          <!-- Code Défi Manuel (fonctionne même sans Firebase) -->
-          <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-2">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-[10px] uppercase text-slate-500">Code Défi Manuel (100 % autonome)</span>
-              <button type="button" id="btn-generate-manual-seed" onclick="generateAndCopyLobbyManualSeed()" class="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold transition">
-                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Générer & Copier
-              </button>
-            </div>
-            <input id="lobby-manual-seed-input" type="text" readonly placeholder="Cliquez sur Générer pour obtenir le code texte..."
-              class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-slate-300 outline-none select-all" />
-          </div>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex-1">
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
-              <i class="fa-solid fa-users text-blue-400 mr-1.5"></i>Joueurs connectés
-            </span>
-            <span id="lobby-players-count" class="text-xs font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">1</span>
-          </div>
-          <ul id="lobby-players-list" class="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar"></ul>
-        </div>
-      </div>
-
-      <!-- Colonne droite : Préférences du Chef de Partie -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4">
-        <div>
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">
-              <i class="fa-solid fa-sliders text-amber-400 mr-1.5"></i>Préférences de la partie
-            </span>
-            <span id="lobby-prefs-lock" class="text-[11px] text-slate-400">Modifiable par le chef</span>
-          </div>
-
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Terrain de jeu</label>
-              <div class="grid grid-cols-3 gap-1.5" id="lobby-zone-controls">
-                <button type="button" data-zone="paris" onclick="updateLobbySetting('zone', 'paris')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-blue-500 bg-blue-500/20 text-white">Paris (75)</button>
-                <button type="button" data-zone="petite_couronne" onclick="updateLobbySetting('zone', 'petite_couronne')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400">Petite Cour.</button>
-                <button type="button" data-zone="idf" onclick="updateLobbySetting('zone', 'idf')" class="lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border border-slate-700 bg-slate-950 text-slate-400">Grande IDF</button>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Chrono par manche</label>
-              <div class="grid grid-cols-4 gap-1.5" id="lobby-timer-controls">
-                <button type="button" data-timer="30" onclick="updateLobbySetting('timer', 30)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">30s</button>
-                <button type="button" data-timer="60" onclick="updateLobbySetting('timer', 60)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">60s</button>
-                <button type="button" data-timer="120" onclick="updateLobbySetting('timer', 120)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">2 min</button>
-                <button type="button" data-timer="0" onclick="updateLobbySetting('timer', 0)" class="lobby-timer-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">∞ Libre</button>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Nombre de manches</label>
-              <div class="grid grid-cols-3 gap-1.5" id="home-rounds-selector">
-                <button type="button" data-rounds="3" onclick="updateLobbySetting('rounds', 3)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">3 manches</button>
-                <button type="button" data-rounds="5" onclick="updateLobbySetting('rounds', 5)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-blue-600 text-white">5 manches</button>
-                <button type="button" data-rounds="10" onclick="updateLobbySetting('rounds', 10)" class="lobby-rounds-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">10 manches</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <button type="button" id="btn-lobby-start" onclick="hostStartLobbyGame()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg shadow-emerald-600/20 transition">
-            <i class="fa-solid fa-rocket mr-2"></i>Lancer la partie pour tous
-          </button>
-          <p id="lobby-guest-wait" class="hidden text-center text-xs text-slate-400 py-2">
-            <i class="fa-solid fa-spinner fa-spin mr-1.5 text-blue-400"></i>En attente du lancement par le chef de partie...
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== 3. ÉCRAN CHARGEMENT MAPILLARY ==================== -->
-  <section id="screen-loading" class="screen flex-col items-center justify-center p-6 text-center">
-    <div class="w-16 h-16 rounded-2xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center mb-4">
-      <i class="fa-solid fa-street-view text-3xl text-blue-400 animate-bounce"></i>
-    </div>
-    <h2 class="text-xl font-extrabold mb-1">Exploration des rues franciliennes...</h2>
-    <p id="loading-status" class="text-sm text-slate-400 mb-5">Recherche de panoramas 360° sur Mapillary (0/5)</p>
-    <div class="w-full max-w-xs bg-slate-800 rounded-full h-2.5 overflow-hidden">
-      <div id="loading-progress-bar" class="bg-gradient-to-r from-blue-500 to-emerald-400 h-full w-0 transition-all duration-300"></div>
-    </div>
-  </section>
-
-  <!-- ==================== 4. ÉCRAN DE JEU (360° + MINI-CARTE) ==================== -->
-  <section id="screen-game" class="screen relative flex-col overflow-hidden">
-    <!-- Visionneuse 360° Three.js -->
-    <div id="viewer-container" class="absolute inset-0 w-full h-full bg-slate-950">
-      <canvas id="viewer-canvas" class="w-full h-full block"></canvas>
-      <!-- Fallback image 2D haute def si panorama non sphérique -->
-      <img id="viewer-fallback-img" class="hidden w-full h-full object-contain bg-black" alt="Vue Street Level" />
-    </div>
-
-    <!-- HUD Supérieur -->
-    <div class="relative z-20 flex items-center justify-between p-3 sm:p-4 pointer-events-none">
-      <!-- Manche & Score -->
-      <div class="pointer-events-auto flex items-center gap-2 bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-2xl shadow-lg">
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Manche</div>
-          <div id="hud-round" class="text-sm font-black text-white">1 / 5</div>
-        </div>
-        <div class="h-6 w-px bg-slate-800 mx-1"></div>
-        <div>
-          <div class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Score</div>
-          <div id="hud-score" class="text-sm font-black text-amber-400">0</div>
-        </div>
-      </div>
-
-      <!-- Boussole centrale -->
-      <div class="pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-2">
-        <i id="hud-compass-icon" class="fa-solid fa-compass text-rose-400 transition-transform duration-100"></i>
-        <span id="hud-compass-text" class="text-xs font-bold tracking-wider text-slate-200">N 0°</span>
-      </div>
-
-      <!-- Chronomètre -->
-      <div id="hud-timer-box" class="pointer-events-auto bg-slate-950/85 backdrop-blur-md border border-slate-800 px-3.5 py-2 rounded-2xl shadow-lg flex items-center gap-2">
-        <i class="fa-regular fa-clock text-blue-400"></i>
-        <span id="hud-timer" class="text-sm font-black tabular-nums text-white">00:30</span>
-      </div>
-    </div>
-
-    <!-- Bouton mobile pour ouvrir la carte -->
-    <div class="relative z-20 mt-auto p-4 flex justify-end pointer-events-none md:hidden">
-      <button type="button" onclick="toggleMobileMapDrawer(true)" class="pointer-events-auto flex items-center gap-2 px-5 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-xl shadow-blue-950/60 border border-blue-400/30">
-        <i class="fa-solid fa-map-location-dot"></i> Placer mon repère
-      </button>
-    </div>
-
-    <!-- Panneau Mini-Carte (Desktop bas-droite / Mobile tiroir plein écran bas) -->
-    <div id="map-drawer" class="fixed md:absolute inset-x-0 bottom-0 md:inset-x-auto md:right-4 md:bottom-4 z-30 h-[62vh] md:h-72 md:w-96 bg-slate-900 border-t md:border border-slate-700 rounded-t-3xl md:rounded-2xl shadow-2xl flex flex-col transform translate-y-full md:translate-y-0 transition-transform duration-300">
-      <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
-        <span class="text-xs font-bold text-slate-300"><i class="fa-solid fa-map-pin text-rose-500 mr-1.5"></i>Clique sur la carte pour deviner</span>
-        <button type="button" onclick="toggleMobileMapDrawer(false)" class="md:hidden px-2.5 py-1 rounded-lg bg-slate-800 text-xs text-slate-300">
-          Fermer <i class="fa-solid fa-chevron-down ml-1"></i>
-        </button>
-      </div>
-      <div id="guess-map" class="flex-1 w-full"></div>
-      <div class="p-2.5 bg-slate-950 border-t border-slate-800">
-        <button type="button" id="btn-submit-guess" disabled onclick="submitPlayerGuess()" class="w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-extrabold text-sm transition disabled:cursor-not-allowed">
-          Place un repère sur la carte
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== 5. ÉCRAN RÉSULTAT DE MANCHE ==================== -->
-  <section id="screen-round-result" class="screen flex-col bg-paris-dark overflow-hidden">
-    <div id="result-map" class="h-[48vh] w-full border-b border-slate-800"></div>
-
-    <div class="flex-1 p-4 sm:p-6 overflow-y-auto custom-scrollbar flex flex-col items-center justify-between max-w-2xl mx-auto w-full">
-      <div class="w-full text-center">
-        <div class="text-xs uppercase tracking-widest text-slate-400 font-bold mb-1">
-          Manche <span id="res-round-num">1</span>/<span id="res-round-total">5</span> • Photo Mapillary
-        </div>
-        <div class="flex items-center justify-center gap-4 my-2">
-          <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl">
-            <div class="text-[11px] text-slate-400">Distance</div>
-            <div id="res-distance" class="text-lg font-black text-white">142 m</div>
-          </div>
-          <div class="bg-slate-900 border border-slate-800 px-4 py-2 rounded-2xl">
-            <div class="text-[11px] text-slate-400">Temps</div>
-            <div id="res-time" class="text-lg font-black text-blue-400">12,4 s</div>
-          </div>
-          <div class="bg-slate-900 border border-amber-500/30 px-4 py-2 rounded-2xl">
-            <div class="text-[11px] text-slate-400">Points</div>
-            <div id="res-points" class="text-lg font-black text-amber-400">+4 850</div>
-          </div>
-        </div>
-
-        <!-- Classement de la manche si multijoueur -->
-        <div id="res-multi-board" class="hidden mt-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-3 text-left">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Comparatif des joueurs sur cette manche</span>
-            <span id="res-multi-progress" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300">1/1</span>
-          </div>
-          <div id="res-waiting-banner" class="hidden mb-2.5 px-3 py-2 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-center gap-2">
-            <i class="fa-solid fa-hourglass-half fa-spin text-amber-400"></i>
-            <span id="res-waiting-text">En attente des autres joueurs...</span>
-          </div>
-          <div id="res-banter-box" class="hidden mb-2.5 px-3 py-2 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-200 text-xs italic flex items-center gap-2">
-            <i class="fa-solid fa-comment-dots text-indigo-400 shrink-0"></i>
-            <span id="res-banter-text"></span>
-          </div>
-          <ul id="res-multi-list" class="space-y-1.5 text-xs"></ul>
-        </div>
-      </div>
-
-      <div class="w-full flex items-center justify-between gap-3 pt-4">
-        <a id="res-mapillary-link" href="#" target="_blank" rel="noopener" class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">
-          <i class="fa-solid fa-up-right-from-square mr-1"></i> Voir sur Mapillary
-        </a>
-        <button type="button" id="btn-next-round" onclick="proceedToNextRound()" class="flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-lg transition">
-          Manche suivante <i class="fa-solid fa-arrow-right ml-1.5"></i>
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== 6. ÉCRAN BILAN FINAL & MENTIONS HONORABLES ==================== -->
-  <section id="screen-final" class="screen flex-col items-center p-4 sm:p-6 overflow-y-auto custom-scrollbar">
-    <div class="w-full max-w-2xl flex flex-col gap-4 my-auto">
-      <div class="text-center bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 text-xs font-bold border border-amber-500/30 mb-2">
-          <i class="fa-solid fa-trophy"></i> <span id="final-rank-title">Chauffeur de Taxi Parisien</span>
-        </div>
-        <div id="final-total-score" class="text-4xl sm:text-5xl font-black text-white tracking-tight">19 420 <span class="text-lg font-bold text-slate-400">/ 25 000 pts</span></div>
-        <p id="final-subtitle" class="text-xs text-slate-400 mt-1.5">Excellente lecture des indices urbains !</p>
-      </div>
-
-      <!-- Podium Multijoueur -->
-      <div id="final-multi-section" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          <i class="fa-solid fa-ranking-star text-amber-400 mr-1.5"></i>Classement du Salon
-        </h3>
-        <ul id="final-multi-leaderboard" class="space-y-2"></ul>
-      </div>
-
-      <!-- Mentions Honorables -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
-          <i class="fa-solid fa-award text-blue-400 mr-1.5"></i>Mentions honorables
-        </h3>
-        <div id="final-honors-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5"></div>
-      </div>
-
-      <!-- Détail des manches -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Détail de vos manches</h3>
-        <ul id="final-rounds-breakdown" class="space-y-1.5 text-xs"></ul>
-      </div>
-
-      <!-- Actions finales -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pb-4">
-        <button type="button" onclick="openChallengeQrModal()" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-emerald-300">
-          <i class="fa-solid fa-qrcode mr-1"></i> QR Code Défi
-        </button>
-        <button type="button" onclick="shareFinalScoreText()" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-blue-300">
-          <i class="fa-solid fa-share-from-square mr-1"></i> Partager score
-        </button>
-        <button type="button" onclick="replaySameSettings()" class="py-3 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-extrabold text-white">
-          <i class="fa-solid fa-rotate-right mr-1"></i> Rejouer
-        </button>
-        <button type="button" onclick="showScreen('screen-home')" class="py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200">
-          <i class="fa-solid fa-house mr-1"></i> Accueil
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== MODALE : REJOINDRE UNE PARTIE ==================== -->
-  <div id="modal-join" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 shadow-2xl">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-extrabold">Rejoindre une partie</h3>
-        <button type="button" onclick="closeModal('modal-join')" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div class="space-y-4">
-        <button type="button" onclick="closeModal('modal-join'); openQrScannerModal();" class="w-full py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg">
-          <i class="fa-solid fa-camera"></i> Scanner le QR Code avec la caméra
-        </button>
-        <div class="relative flex py-1 items-center">
-          <div class="flex-grow border-t border-slate-800"></div>
-          <span class="flex-shrink mx-3 text-xs text-slate-500 uppercase">ou code manuel</span>
-          <div class="flex-grow border-t border-slate-800"></div>
-        </div>
-        <div>
-          <label for="input-join-code" class="block text-xs text-slate-400 mb-1.5">Code Salon (4 lettres) ou Code Défi</label>
-          <input id="input-join-code" type="text" placeholder="Ex: PARI ou paris@30:..."
-            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-mono uppercase text-white outline-none focus:border-blue-500 select-text" />
-        </div>
-        <button type="button" onclick="submitJoinCode()" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">
-          Rejoindre le salon
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== MODALE : SCANNER QR CODE CAMÉRA ==================== -->
-  <div id="modal-qr-scanner" class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-sm items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-5 shadow-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-base font-extrabold"><i class="fa-solid fa-qrcode text-emerald-400 mr-2"></i>Scanner le QR Code</h3>
-        <button type="button" onclick="closeQrScannerModal()" class="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden bg-black border border-slate-800"></div>
-      <p id="qr-scanner-status" class="text-xs text-center text-slate-400 mt-3">Placez le QR Code de l'hôte dans le cadre</p>
-    </div>
-  </div>
-
-  <!-- ==================== MODALE : QR CODE DÉFI FIN DE PARTIE ==================== -->
-  <div id="modal-challenge-qr" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-sm w-full p-5 text-center shadow-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-base font-extrabold">Défier un ami (Mêmes lieux)</h3>
-        <button type="button" onclick="closeModal('modal-challenge-qr')" class="p-2 rounded-xl bg-slate-800 text-slate-400"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <div id="challenge-qrcode-box" class="bg-white p-3 rounded-2xl inline-block mx-auto my-2"></div>
-      <p class="text-xs text-slate-400 mt-2 mb-3">Scannez ce QR Code ou copiez le code manuel ci-dessous :</p>
-      <div class="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-xl p-2">
-        <input id="challenge-manual-code-input" type="text" readonly class="flex-1 bg-transparent font-mono text-[11px] text-slate-300 outline-none select-all" />
-        <button type="button" onclick="copyChallengeManualCode()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shrink-0">
-          Copier
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast notifications -->
-  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-full bg-slate-800 border border-slate-600 text-xs font-bold text-white shadow-xl"></div>
-
-  <!-- Firebase SDK Compat -->
+  <!-- Firebase Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #090d16;
+      color: #f8fafc;
+      overflow-x: hidden;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+    .glass-light {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+    #pano-canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      touch-action: none;
+      cursor: grab;
+      background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+    }
+    #pano-canvas-container:active {
+      cursor: grabbing;
+    }
+    #minimap-wrapper {
+      position: fixed;
+      right: 16px;
+      bottom: 84px;
+      width: 185px;
+      height: 145px;
+      z-index: 30;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.75);
+      border: 2px solid rgba(129, 140, 248, 0.35);
+    }
+    #minimap-wrapper.expanded {
+      width: calc(100vw - 32px);
+      max-width: 520px;
+      height: 54vh;
+      max-height: 440px;
+      bottom: 88px;
+      right: 16px;
+      border-color: #818cf8;
+    }
+    @media (min-width: 768px) {
+      #minimap-wrapper {
+        width: 270px;
+        height: 195px;
+        bottom: 24px;
+        right: 24px;
+      }
+      #minimap-wrapper.expanded {
+        width: 520px;
+        height: 390px;
+        bottom: 24px;
+        right: 24px;
+      }
+    }
+    .leaflet-container {
+      background: #0f172a !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+    .custom-pin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 9999px;
+      font-weight: 800;
+      font-size: 11px;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.55);
+      border: 2px solid #fff;
+    }
+    @keyframes pulseUrgent {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .timer-urgent {
+      animation: pulseUrgent 0.75s infinite;
+      color: #f87171 !important;
+      border-color: rgba(248, 113, 113, 0.5) !important;
+    }
+    #qrcode-container img, #qrcode-container canvas,
+    #challenge-qrcode-container img, #challenge-qrcode-container canvas {
+      margin: 0 auto;
+      border-radius: 12px;
+      border: 8px solid #ffffff;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] hidden px-4 py-2.5 rounded-full glass text-sm font-semibold text-white shadow-2xl border border-indigo-400/40 flex items-center gap-2 transition-all">
+    <span id="toast-icon">✨</span>
+    <span id="toast-text">Notification</span>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 1 : ACCUEIL                                         -->
+  <!-- ========================================================= -->
+  <section id="screen-home" class="min-h-screen w-full flex flex-col justify-between p-4 md:p-8 max-w-2xl mx-auto relative z-10">
+    <!-- Header -->
+    <header class="flex items-center justify-between pt-2">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/30 font-black text-xl">
+          🗼
+        </div>
+        <div>
+          <h1 class="text-xl md:text-2xl font-black tracking-tight bg-gradient-to-r from-white via-indigo-200 to-indigo-400 bg-clip-text text-transparent">
+            PinPointParis
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">360° Île-de-France • Party Live</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span id="firebase-status-badge" class="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Cloud Actif
+        </span>
+      </div>
+    </header>
+
+    <!-- Carte principale -->
+    <main class="my-auto py-6 space-y-5">
+      <div class="glass rounded-3xl p-5 md:p-7 space-y-5 shadow-2xl">
+        <!-- Pseudo -->
+        <div>
+          <label for="input-username" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Ton Pseudo
+          </label>
+          <div class="relative">
+            <input
+              id="input-username"
+              type="text"
+              maxlength="18"
+              placeholder="Ex: HaussmannSniper"
+              class="w-full bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/30 rounded-2xl px-4 py-3.5 text-base font-semibold text-white placeholder-slate-500 outline-none transition"
+            />
+            <button onclick="randomizePseudo()" title="Pseudo aléatoire" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-400 text-lg p-1">
+              🎲
+            </button>
+          </div>
+        </div>
+
+        <!-- Sélecteur de Zone -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Terrain de Jeu
+          </label>
+          <div class="grid grid-cols-3 gap-2.5" id="home-zone-selector">
+            <button type="button" data-zone="paris" onclick="selectHomeZone('paris')" class="zone-btn active-zone flex flex-col items-center justify-center p-3 rounded-2xl border border-indigo-500 bg-indigo-500/20 text-white transition">
+              <span class="text-xl mb-1">🥐</span>
+              <span class="text-xs font-extrabold">Paris</span>
+              <span class="text-[10px] text-indigo-200/80">Intra-muros</span>
+            </button>
+            <button type="button" data-zone="petite" onclick="selectHomeZone('petite')" class="zone-btn flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-700/80 bg-slate-900/60 text-slate-300 hover:border-slate-600 transition">
+              <span class="text-xl mb-1">🚇</span>
+              <span class="text-xs font-extrabold">Petite Couronne</span>
+              <span class="text-[10px] text-slate-400">92 • 93 • 94</span>
+            </button>
+            <button type="button" data-zone="grande" onclick="selectHomeZone('grande')" class="zone-btn flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-700/80 bg-slate-900/60 text-slate-300 hover:border-slate-600 transition">
+              <span class="text-xl mb-1">🚆</span>
+              <span class="text-xs font-extrabold">Grande IDF</span>
+              <span class="text-[10px] text-slate-400">Toute la région</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Actions principales -->
+        <div class="space-y-3 pt-1">
+          <button onclick="handleCreateLobby()" class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-[0.99] font-extrabold text-base text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-2.5 transition">
+            <span>🚀</span>
+            <span>Créer une partie (Multijoueur)</span>
+          </button>
+
+          <!-- Saisie directe Code Manuel -->
+          <div class="pt-1">
+            <label for="home-manual-code" class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5">
+              Rejoindre avec un code manuel
+            </label>
+            <div class="flex gap-2">
+              <input
+                id="home-manual-code"
+                type="text"
+                placeholder="Code salon (ex: PARI) ou code défi..."
+                onkeydown="if(event.key==='Enter') handleDirectManualJoin()"
+                class="flex-1 bg-slate-900/90 border border-slate-700/80 focus:border-indigo-500 rounded-2xl px-3.5 py-3 text-sm font-mono font-bold text-white placeholder-slate-500 outline-none"
+              />
+              <button onclick="handleDirectManualJoin()" class="px-4 py-3 rounded-2xl bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 font-extrabold text-sm text-indigo-200 transition whitespace-nowrap">
+                Rejoindre
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2.5">
+            <button onclick="openJoinModal()" class="py-3 px-4 rounded-2xl glass-light hover:bg-slate-800 active:scale-[0.99] font-bold text-xs text-slate-200 flex items-center justify-center gap-2 transition">
+              <span>⌨️</span>
+              <span>Fenêtre Code</span>
+            </button>
+            <button onclick="openScannerModal()" class="py-3 px-4 rounded-2xl glass-light hover:bg-slate-800 active:scale-[0.99] font-bold text-xs text-indigo-300 border border-indigo-500/30 flex items-center justify-center gap-2 transition">
+              <span>📷</span>
+              <span>Scanner QR Code</span>
+            </button>
+          </div>
+
+          <button onclick="startSoloQuickGame()" class="w-full py-3 px-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/70 font-semibold text-xs text-slate-300 flex items-center justify-center gap-2 transition">
+            <span>⚡</span>
+            <span>Partie Solo Express (5 manches • 30s • 100% 360°)</span>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center text-[11px] text-slate-500 pb-2">
+      5 manches • 30 sec / manche • Panoramas 360° vérifiés (Mapillary)
+    </footer>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 2 : LOBBY MULTIJOUEUR                               -->
+  <!-- ========================================================= -->
+  <section id="screen-lobby" class="hidden min-h-screen w-full flex flex-col justify-between p-4 md:p-8 max-w-2xl mx-auto relative z-10">
+    <header class="flex items-center justify-between pt-2">
+      <button onclick="leaveLobby()" class="px-3.5 py-2 rounded-xl glass-light text-xs font-bold text-slate-300 hover:text-white flex items-center gap-1.5">
+        ← Quitter
+      </button>
+      <div class="text-center">
+        <span class="text-[11px] uppercase tracking-widest text-slate-400 font-bold block">Salon Live</span>
+        <span id="lobby-room-code" class="font-mono text-2xl font-black tracking-widest text-indigo-400">----</span>
+      </div>
+      <div id="lobby-role-badge" class="px-3 py-1.5 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-xs font-bold text-indigo-300">
+        Hôte
+      </div>
+    </header>
+
+    <main class="my-auto py-4 space-y-4">
+      <!-- Carte QR Code & Code Manuel -->
+      <div class="glass rounded-3xl p-5 text-center space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Inviter des joueurs</span>
+          <span id="lobby-mode-pill" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            Paris Intra-muros
+          </span>
+        </div>
+
+        <div id="qrcode-container" class="py-1 flex justify-center"></div>
+
+        <!-- Bloc Code Manuel bien visible -->
+        <div class="bg-slate-950/75 border border-slate-700/80 rounded-2xl p-3.5 space-y-2.5 text-left">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Code Salon (Manuel)</span>
+              <span id="lobby-manual-room-code" class="font-mono text-xl font-black tracking-[0.22em] text-white">----</span>
+            </div>
+            <button onclick="copyRoomCodeOnly()" class="px-3 py-2 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-extrabold text-indigo-200 transition">
+              📋 Copier le code
+            </button>
+          </div>
+
+          <div class="border-t border-slate-800 pt-2.5 flex items-center justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Code Défi Manuel (Hors-ligne / Secours)</span>
+              <p id="lobby-offline-seed-preview" class="font-mono text-[11px] text-slate-300 truncate">Génération auto au partage...</p>
+            </div>
+            <button onclick="copyManualSeedCode()" class="px-3 py-2 rounded-xl glass-light hover:bg-slate-800 text-xs font-bold text-slate-200 transition whitespace-nowrap">
+              🔑 Générer & Copier
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-center gap-2">
+          <button onclick="copyInviteLink()" class="flex-1 py-2.5 px-3 rounded-xl glass-light hover:bg-slate-800 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5">
+            🔗 Copier le lien complet
+          </button>
+          <button onclick="shareInviteLink()" class="py-2.5 px-3.5 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 border border-indigo-500/40 text-xs font-bold text-indigo-200">
+            📤 Partager
+          </button>
+        </div>
+      </div>
+
+      <!-- Paramètres Hôte (Zone + Chrono) -->
+      <div id="host-controls-card" class="glass rounded-3xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Zone de jeu</span>
+          <span class="text-xs font-semibold text-indigo-300">5 manches • 30s</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2" id="lobby-zone-selector">
+          <button type="button" data-zone="paris" onclick="changeLobbyZone('paris')" class="lobby-zone-btn py-2 px-2 rounded-xl border border-indigo-500 bg-indigo-500/20 text-xs font-bold text-white">
+            🥐 Paris
+          </button>
+          <button type="button" data-zone="petite" onclick="changeLobbyZone('petite')" class="lobby-zone-btn py-2 px-2 rounded-xl border border-slate-700 bg-slate-900/70 text-xs font-bold text-slate-300">
+            🚇 Petite Couronne
+          </button>
+          <button type="button" data-zone="grande" onclick="changeLobbyZone('grande')" class="lobby-zone-btn py-2 px-2 rounded-xl border border-slate-700 bg-slate-900/70 text-xs font-bold text-slate-300">
+            🚆 Grande IDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Liste des joueurs -->
+      <div class="glass rounded-3xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Joueurs dans le salon</span>
+          <span id="lobby-player-count" class="text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-slate-800 text-indigo-300">1</span>
+        </div>
+        <div id="lobby-players-list" class="space-y-2 max-h-44 overflow-y-auto pr-1"></div>
+      </div>
+    </main>
+
+    <footer class="pb-2">
+      <button id="btn-start-lobby-game" onclick="hostStartGame()" class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 font-extrabold text-base text-white shadow-xl shadow-emerald-600/25 flex items-center justify-center gap-2 transition">
+        <span>🏁</span>
+        <span>Lancer la partie (5 manches)</span>
+      </button>
+      <p id="guest-waiting-msg" class="hidden text-center text-xs font-semibold text-indigo-300 py-3 glass rounded-2xl">
+        ⏳ En attente que l'hôte lance la partie...
+      </p>
+    </footer>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 3 : CHARGEMENT DES PANORAMAS 360°                   -->
+  <!-- ========================================================= -->
+  <section id="screen-loading" class="hidden min-h-screen w-full flex flex-col items-center justify-center p-6 text-center relative z-20">
+    <div class="glass rounded-3xl p-8 max-w-sm w-full space-y-5 shadow-2xl">
+      <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-500/20 border border-indigo-400/40 flex items-center justify-center text-3xl animate-bounce">
+        🛰️
+      </div>
+      <div>
+        <h2 class="text-lg font-extrabold text-white">Recherche de vrais panoramas 360°...</h2>
+        <p id="loading-subtitle" class="text-xs text-slate-400 mt-1">Filtrage strict des vues sphériques Mapillary</p>
+      </div>
+      <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+        <div id="loading-progress-bar" class="bg-gradient-to-r from-indigo-500 to-pink-500 h-full w-1/5 transition-all duration-300"></div>
+      </div>
+      <p id="loading-step-text" class="text-[11px] font-mono text-indigo-300">Initialisation...</p>
+    </div>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 4 : EN JEU (PANORAMA 360° + MINIMAP + CHRONO)       -->
+  <!-- ========================================================= -->
+  <section id="screen-game" class="hidden fixed inset-0 z-10 select-none">
+    <!-- Canvas Three.js 360° -->
+    <div id="pano-canvas-container"></div>
+
+    <!-- HUD Supérieur -->
+    <div class="fixed top-3 left-3 right-3 z-30 flex items-center justify-between gap-2 pointer-events-none">
+      <div class="glass px-3.5 py-2 rounded-2xl flex items-center gap-3 pointer-events-auto">
+        <div>
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Manche</span>
+          <span id="hud-round" class="text-sm font-black text-white">1 / 5</span>
+        </div>
+        <div class="h-6 w-px bg-slate-700"></div>
+        <div>
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold block">Score</span>
+          <span id="hud-score" class="text-sm font-black text-indigo-400">0</span>
+        </div>
+      </div>
+
+      <!-- Chrono -->
+      <div id="hud-timer-box" class="glass px-4 py-2 rounded-2xl border border-slate-700/80 flex items-center gap-2 pointer-events-auto">
+        <span class="text-sm">⏱️</span>
+        <span id="hud-timer" class="font-mono text-lg font-black text-white">00:30</span>
+      </div>
+
+      <!-- Bouton Reset Vue -->
+      <button onclick="resetCameraOrientation()" title="Recentrer la caméra" class="glass p-2.5 rounded-2xl text-slate-300 hover:text-white pointer-events-auto">
+        🧭
+      </button>
+    </div>
+
+    <!-- Indication geste tactile -->
+    <div id="pano-hint-pill" class="fixed top-20 left-1/2 -translate-x-1/2 z-20 px-3.5 py-1.5 rounded-full glass text-[11px] font-medium text-slate-300 pointer-events-none transition-opacity duration-700">
+      👆 Glisse pour regarder à 360° • Place ton repère sur la carte
+    </div>
+
+    <!-- Minimap Interactive -->
+    <div id="minimap-wrapper">
+      <div id="guess-map" class="w-full h-full"></div>
+      <button id="btn-toggle-map" onclick="toggleMinimapSize(event)" class="absolute top-2 left-2 z-[500] px-2.5 py-1.5 rounded-xl bg-slate-900/90 border border-slate-700 text-[11px] font-extrabold text-white shadow-lg flex items-center gap-1">
+        <span id="toggle-map-icon">⤢</span>
+        <span id="toggle-map-label">Agrandir</span>
+      </button>
+    </div>
+
+    <!-- Barre inférieure de validation -->
+    <div class="fixed bottom-4 left-4 right-4 md:right-[310px] z-30 flex items-center gap-2.5">
+      <button
+        id="btn-submit-guess"
+        onclick="submitPlayerGuess()"
+        disabled
+        class="w-full py-3.5 px-5 rounded-2xl bg-slate-800/90 text-slate-500 border border-slate-700/80 font-extrabold text-sm shadow-2xl transition flex items-center justify-center gap-2 disabled:cursor-not-allowed"
+      >
+        <span>📍</span>
+        <span id="btn-submit-label">Clique sur la carte pour placer ton repère</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 5 : RÉSULTAT DE MANCHE                              -->
+  <!-- ========================================================= -->
+  <section id="screen-round-result" class="hidden min-h-screen w-full flex flex-col justify-between p-4 md:p-6 max-w-3xl mx-auto relative z-20">
+    <header class="flex items-center justify-between">
+      <div>
+        <span id="result-round-badge" class="text-xs font-extrabold uppercase tracking-wider text-indigo-400">Résultat Manche 1/5</span>
+        <h2 id="result-location-name" class="text-lg md:text-xl font-black text-white truncate max-w-[260px] md:max-w-md">Paris</h2>
+      </div>
+      <div class="text-right">
+        <span class="text-[11px] text-slate-400 block">Points gagnés</span>
+        <span id="result-points-earned" class="text-xl font-black text-emerald-400">+0 pts</span>
+      </div>
+    </header>
+
+    <!-- Carte comparative -->
+    <div class="my-3 rounded-3xl overflow-hidden border border-slate-700/80 shadow-2xl h-[34vh] md:h-[40vh] relative">
+      <div id="result-map" class="w-full h-full"></div>
+      <div class="absolute bottom-3 left-3 z-[500] glass px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2">
+        <span>📏 Distance :</span>
+        <span id="result-distance-text" class="text-indigo-300 font-mono">-- m</span>
+      </div>
+    </div>
+
+    <!-- Bannière d'attente des autres joueurs en Multijoueur -->
+    <div id="round-waiting-banner" class="hidden glass rounded-2xl p-3.5 border border-amber-500/40 bg-amber-500/10 space-y-2.5">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
+          <span class="text-xs font-extrabold text-amber-200">Attente des autres joueurs...</span>
+        </div>
+        <span id="round-ready-counter" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-amber-300 border border-amber-500/30">
+          1/2 prêts
+        </span>
+      </div>
+      <p id="round-waiting-names" class="text-xs text-slate-200 font-medium">
+        En attente de : ...
+      </p>
+      <!-- Commentaire dynamique & vannes entre les manches -->
+      <div id="round-banter-box" class="bg-slate-950/75 border border-indigo-500/30 rounded-xl px-3 py-2 flex items-start gap-2">
+        <span id="round-banter-emoji" class="text-base leading-none mt-0.5">💬</span>
+        <p id="round-banter-text" class="text-xs font-semibold text-indigo-200 leading-snug"></p>
+      </div>
+    </div>
+
+    <!-- Classement de la manche -->
+    <div class="glass rounded-3xl p-4 space-y-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Classement de la manche</span>
+        <span class="text-[11px] text-slate-400">Total cumulé</span>
+      </div>
+      <div id="round-leaderboard-list" class="space-y-2 max-h-40 overflow-y-auto"></div>
+    </div>
+
+    <footer class="pt-3 pb-2">
+      <button id="btn-next-round" onclick="proceedToNextRound()" class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-extrabold text-base text-white shadow-xl flex items-center justify-center gap-2 transition">
+        <span id="btn-next-round-label">Manche suivante</span>
+        <span>→</span>
+      </button>
+    </footer>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 6 : PODIUM FINAL & MENTIONS HONORABLES              -->
+  <!-- ========================================================= -->
+  <section id="screen-final" class="hidden min-h-screen w-full flex flex-col justify-between p-4 md:p-8 max-w-2xl mx-auto relative z-20">
+    <header class="text-center pt-2 space-y-1">
+      <span class="inline-block px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-xs font-extrabold text-indigo-300">
+        🏆 FIN DE PARTIE
+      </span>
+      <h2 class="text-2xl md:text-3xl font-black text-white">Podium PinPointParis</h2>
+    </header>
+
+    <main class="my-auto py-4 space-y-4">
+      <!-- Podium Top 3 -->
+      <div id="final-podium-cards" class="grid grid-cols-1 gap-2.5"></div>
+
+      <!-- Mentions Honorables -->
+      <div class="glass rounded-3xl p-4 space-y-2.5">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">🎖️ Mentions Honorables</span>
+        <div id="final-honorable-mentions" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
+      </div>
+
+      <!-- Défi QR Code pour amis -->
+      <div class="glass rounded-3xl p-4 flex items-center justify-between gap-3">
+        <div>
+          <span class="text-xs font-extrabold text-white block">Défier un ami sur ces 5 lieux</span>
+          <span class="text-[11px] text-slate-400">Génère un QR Code ou un code manuel</span>
+        </div>
+        <button onclick="openChallengeShareModal()" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-extrabold text-white whitespace-nowrap">
+          📲 QR Code Défi
+        </button>
+      </div>
+    </main>
+
+    <footer class="grid grid-cols-2 gap-3 pb-2">
+      <button onclick="shareFinalScoreText()" class="py-3.5 px-4 rounded-2xl glass-light hover:bg-slate-800 font-bold text-sm text-white flex items-center justify-center gap-2">
+        <span>📋</span>
+        <span>Partager score</span>
+      </button>
+      <button onclick="returnToHome()" class="py-3.5 px-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 font-extrabold text-sm text-white flex items-center justify-center gap-2">
+        <span>🏠</span>
+        <span>Accueil</span>
+      </button>
+    </footer>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- MODALE : REJOINDRE PAR CODE                               -->
+  <!-- ========================================================= -->
+  <div id="modal-join" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-3xl p-6 max-w-sm w-full space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-white">Rejoindre une partie</h3>
+        <button onclick="closeModal('modal-join')" class="text-slate-400 hover:text-white text-xl">✕</button>
+      </div>
+      <p class="text-xs text-slate-400">Entre le code à 4 lettres du salon (ex: <span class="font-mono text-indigo-300">PARI</span>) ou colle un code défi manuel.</p>
+      <input
+        id="input-join-code"
+        type="text"
+        placeholder="CODE SALON OU DÉFI"
+        class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-2xl px-4 py-3.5 text-center font-mono text-lg font-black uppercase tracking-widest text-white outline-none"
+      />
+      <button onclick="submitJoinCode()" class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 font-extrabold text-sm text-white">
+        Rejoindre maintenant
+      </button>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODALE : SCANNER QR CODE (CAMÉRA)                         -->
+  <!-- ========================================================= -->
+  <div id="modal-scanner" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-3xl p-5 max-w-sm w-full space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-white">📷 Scanner le QR Code</h3>
+        <button onclick="closeScannerModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+      </div>
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden bg-slate-950 min-h-[240px]"></div>
+      <p class="text-[11px] text-center text-slate-400">Vise le QR Code affiché sur l'écran de l'hôte.</p>
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODALE : PARTAGE DÉFI FIN DE PARTIE                       -->
+  <!-- ========================================================= -->
+  <div id="modal-challenge-qr" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-3xl p-6 max-w-sm w-full space-y-4 text-center">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-white">Défi 5 Manches</h3>
+        <button onclick="closeModal('modal-challenge-qr')" class="text-slate-400 hover:text-white text-xl">✕</button>
+      </div>
+      <p class="text-xs text-slate-400">Fais scanner ce QR Code ou envoie le code manuel ci-dessous pour que tes amis jouent exactement les mêmes 5 lieux :</p>
+      <div id="challenge-qrcode-container" class="py-2 flex justify-center"></div>
+
+      <div class="bg-slate-950/80 border border-slate-700/80 rounded-2xl p-3 text-left space-y-2">
+        <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Code Défi Manuel</label>
+        <input
+          id="challenge-manual-code-output"
+          type="text"
+          readonly
+          onclick="this.select()"
+          class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 font-mono text-[11px] text-indigo-300 outline-none"
+        />
+        <button onclick="copyChallengeManualInput()" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-extrabold text-xs text-white transition">
+          📋 Copier le code manuel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    /* ==================== CONFIGURATION & ÉTAT GLOBAL ==================== */
-    const DEFAULT_MAPILLARY_TOKEN = 'MLY|29468706819480746|07c60431267356042a597f6c50a40506';
+    // =========================================================================
+    // 1. CONFIGURATION & CONSTANTES GLOBALES
+    // =========================================================================
+    const DEFAULT_MAPILLARY_TOKEN = "MLY|27579750788272521|63261d7226d35b14cf69c383b419a76a";
 
     const DEFAULT_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBEcDEiJpLnr4IuuDO_Qj1UqvWyhlV74zU",
@@ -574,1038 +654,1483 @@
     };
 
     const ZONES = {
-      paris: { name: 'Paris (75)', minLon: 2.255, maxLon: 2.415, minLat: 48.818, maxLat: 48.900, center: [48.8566, 2.3522], zoom: 12 },
-      petite_couronne: { name: 'Petite Couronne', minLon: 2.180, maxLon: 2.490, minLat: 48.770, maxLat: 48.940, center: [48.8566, 2.3400], zoom: 11 },
-      idf: { name: 'Grande Île-de-France', minLon: 1.950, maxLon: 2.750, minLat: 48.620, maxLat: 49.050, center: [48.8400, 2.3500], zoom: 10 }
+      paris: {
+        id: 'paris',
+        label: 'Paris Intra-muros',
+        center: [48.8566, 2.3522],
+        zoom: 12,
+        bbox: [2.255, 48.818, 2.415, 48.900],
+        maxDistKm: 12
+      },
+      petite: {
+        id: 'petite',
+        label: 'Petite Couronne (92/93/94)',
+        center: [48.8566, 2.3522],
+        zoom: 11,
+        bbox: [2.150, 48.745, 2.530, 48.965],
+        maxDistKm: 28
+      },
+      grande: {
+        id: 'grande',
+        label: 'Grande Île-de-France',
+        center: [48.7800, 2.4200],
+        zoom: 9,
+        bbox: [1.650, 48.350, 3.150, 49.120],
+        maxDistKm: 95
+      }
+    };
+
+    // Coordonnées de secours exclusivement sur des axes couverts à 360° dans Mapillary
+    const FALLBACK_COORDS = {
+      paris: [
+        { lat: 48.8584, lng: 2.2945, name: "Champ-de-Mars / Tour Eiffel" },
+        { lat: 48.8738, lng: 2.2950, name: "Place Charles-de-Gaulle" },
+        { lat: 48.8606, lng: 2.3376, name: "Rue de Rivoli / Louvre" },
+        { lat: 48.8867, lng: 2.3431, name: "Montmartre / Sacré-Cœur" },
+        { lat: 48.8530, lng: 2.3499, name: "Parvis Notre-Dame" },
+        { lat: 48.8720, lng: 2.3645, name: "Canal Saint-Martin" },
+        { lat: 48.8462, lng: 2.3372, name: "Boulevard Saint-Michel / Luxembourg" },
+        { lat: 48.8656, lng: 2.3212, name: "Place de la Concorde" },
+        { lat: 48.8532, lng: 2.3692, name: "Place de la Bastille" },
+        { lat: 48.8414, lng: 2.3208, name: "Tour Montparnasse" }
+      ],
+      petite: [
+        { lat: 48.8917, lng: 2.2385, name: "Esplanade de La Défense (92)" },
+        { lat: 48.9362, lng: 2.3574, name: "Basilique Saint-Denis (93)" },
+        { lat: 48.8448, lng: 2.4392, name: "Château de Vincennes (94)" },
+        { lat: 48.8396, lng: 2.2399, name: "Boulogne-Billancourt (92)" },
+        { lat: 48.8625, lng: 2.4412, name: "Montreuil – Croix de Chavaux (93)" },
+        { lat: 48.7904, lng: 2.4556, name: "Créteil – Préfecture (94)" },
+        { lat: 48.8966, lng: 2.3075, name: "Levallois-Perret (92)" }
+      ],
+      grande: [
+        { lat: 48.8049, lng: 2.1204, name: "Place d'Armes – Versailles (78)" },
+        { lat: 48.4047, lng: 2.7016, name: "Château de Fontainebleau (77)" },
+        { lat: 49.0389, lng: 2.0750, name: "Cergy-Préfecture (95)" },
+        { lat: 48.6298, lng: 2.4418, name: "Évry-Courcouronnes (91)" },
+        { lat: 48.8592, lng: 2.7805, name: "Marne-la-Vallée / Chessy (77)" },
+        { lat: 48.8980, lng: 2.0938, name: "Saint-Germain-en-Laye (78)" }
+      ]
     };
 
     const STATE = {
-      playerName: localStorage.getItem('pg_player_name') || '',
-      playerId: localStorage.getItem('pg_player_id') || ('p_' + Math.random().toString(36).substring(2, 10)),
-      mapillaryToken: localStorage.getItem('pg_mly_token') || DEFAULT_MAPILLARY_TOKEN,
-      zone: 'paris',
-      timerSeconds: 30,
+      playerId: null,
+      username: '',
+      selectedZone: 'paris',
+      roundDuration: 30,
       totalRounds: 5,
-      mode: 'solo', // 'solo' | 'lobby'
-      roomCode: null,
-      isHost: false,
-      lobbyUnsubscribe: null,
-      lobbyData: null,
-      preloadedLobbyLocations: null,
-      locations: [],
-      currentRoundIndex: 0,
-      roundStartTime: 0,
-      timerInterval: null,
-      currentGuess: null,
-      roundHistory: [],
-      totalScore: 0,
-      db: null,
-      firebaseReady: false
-    };
-    localStorage.setItem('pg_player_id', STATE.playerId);
+      mapillaryToken: DEFAULT_MAPILLARY_TOKEN,
 
-    /* ==================== UTILITAIRES UI ==================== */
-    function showScreen(id) {
-      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-      const target = document.getElementById(id);
-      if (target) target.classList.add('active');
+      isMultiplayer: false,
+      isHost: false,
+      roomCode: null,
+      unsubscribeRoom: null,
+      roomData: null,
+
+      roundsData: [],
+      currentRoundIndex: 0,
+      totalScore: 0,
+      roundHistory: [],
+
+      timerInterval: null,
+      timeLeft: 30,
+      roundStartTime: 0,
+      hasSubmittedCurrentRound: false,
+
+      guessMap: null,
+      guessMarker: null,
+      currentGuessLatLng: null,
+      resultMap: null,
+      html5QrScanner: null,
+
+      three: {
+        scene: null,
+        camera: null,
+        renderer: null,
+        mesh: null,
+        lon: 0,
+        lat: 0,
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        startLon: 0,
+        startLat: 0,
+        animId: null
+      }
+    };
+
+    let db = null;
+    let auth = null;
+    let firebaseReady = false;
+
+    // =========================================================================
+    // 2. UTILITAIRES UI & NAVIGATION
+    // =========================================================================
+    function showScreen(screenId) {
+      ['screen-home', 'screen-lobby', 'screen-loading', 'screen-game', 'screen-round-result', 'screen-final']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.classList.add('hidden');
+        });
+      const target = document.getElementById(screenId);
+      if (target) target.classList.remove('hidden');
     }
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.remove('hidden');
-      clearTimeout(t._timer);
-      t._timer = setTimeout(() => t.classList.add('hidden'), 3000);
+    function showToast(text, icon = '✨') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').textContent = text;
+      document.getElementById('toast-icon').textContent = icon;
+      toast.classList.remove('hidden');
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => toast.classList.add('hidden'), 3200);
     }
 
     function openModal(id) {
-      const m = document.getElementById(id);
-      m.classList.remove('hidden');
-      m.classList.add('flex');
+      document.getElementById(id).classList.remove('hidden');
     }
 
     function closeModal(id) {
-      const m = document.getElementById(id);
-      m.classList.add('hidden');
-      m.classList.remove('flex');
+      document.getElementById(id).classList.add('hidden');
     }
 
-    function copyTextSafe(text, toastMsg) {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        document.execCommand('copy');
-        if (toastMsg) showToast(toastMsg);
-      } catch (e) {
-        showToast('Copie effectuée');
+    function randomizePseudo() {
+      const adjs = ['Sniper', 'Flâneur', 'Baron', 'Navigo', 'Périph', 'Express', 'Métro', 'Titi', 'Paname', 'Haussmann'];
+      const nouns = ['75', 'Bastille', 'Montmartre', 'Belleville', 'Châtelet', 'Oberkampf', 'Pigalle', 'Nation', 'Auteuil', 'Bercy'];
+      const pseudo = adjs[Math.floor(Math.random() * adjs.length)] + nouns[Math.floor(Math.random() * nouns.length)];
+      document.getElementById('input-username').value = pseudo;
+      localStorage.setItem('parisguessr_username', pseudo);
+    }
+
+    function ensureUsername() {
+      let val = document.getElementById('input-username').value.trim();
+      if (!val) {
+        randomizePseudo();
+        val = document.getElementById('input-username').value.trim();
       }
-      document.body.removeChild(ta);
+      STATE.username = val;
+      localStorage.setItem('parisguessr_username', val);
+      return val;
     }
 
-    function getPlayerName() {
-      const val = document.getElementById('input-player-name').value.trim();
-      const name = val || ('Parisien_' + STATE.playerId.slice(-3).toUpperCase());
-      STATE.playerName = name;
-      localStorage.setItem('pg_player_name', name);
-      return name;
-    }
-
-    /* ==================== SÉLECTEURS ACCUEIL ==================== */
-    function selectHomeZone(zone) {
-      STATE.zone = zone;
+    function selectHomeZone(zoneKey) {
+      STATE.selectedZone = zoneKey;
       document.querySelectorAll('#home-zone-selector .zone-btn').forEach(btn => {
-        const active = btn.dataset.zone === zone;
-        btn.className = `zone-btn py-2 px-2.5 rounded-xl text-xs font-bold border transition ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-700 bg-slate-950/60 text-slate-400 hover:text-white'}`;
+        const isMatch = btn.dataset.zone === zoneKey;
+        btn.className = isMatch
+          ? 'zone-btn active-zone flex flex-col items-center justify-center p-3 rounded-2xl border border-indigo-500 bg-indigo-500/20 text-white transition'
+          : 'zone-btn flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-700/80 bg-slate-900/60 text-slate-300 hover:border-slate-600 transition';
       });
     }
 
-    function selectHomeTimer(sec) {
-      STATE.timerSeconds = sec;
-      document.querySelectorAll('#home-timer-selector .timer-btn').forEach(btn => {
-        const active = Number(btn.dataset.timer) === sec;
-        btn.className = `timer-btn py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
-      });
-    }
+    // =========================================================================
+    // 3. INITIALISATION FIREBASE (LIVE CLOUD AUTOMATIQUE)
+    // =========================================================================
+    async function initFirebaseFromStorage() {
+      const savedConfigRaw = localStorage.getItem('parisguessr_firebase_config');
+      const configToUse = savedConfigRaw ? JSON.parse(savedConfigRaw) : DEFAULT_FIREBASE_CONFIG;
 
-    function selectHomeRounds(n) {
-      STATE.totalRounds = n;
-      document.querySelectorAll('#home-rounds-selector .rounds-btn').forEach(btn => {
-        const active = Number(btn.dataset.rounds) === n;
-        btn.className = `rounds-btn py-1.5 rounded-lg text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
-      });
-    }
-
-    /* ==================== FIREBASE INIT ==================== */
-    function initFirebaseFromStorage() {
-      const cfg = DEFAULT_FIREBASE_CONFIG;
       try {
-        if (!firebase.apps.length) firebase.initializeApp(cfg);
-        firebase.auth().signInAnonymously().catch(() => {});
-        STATE.db = firebase.firestore();
-        STATE.firebaseReady = true;
-        const badge = document.getElementById('badge-firebase-status');
+        if (!firebase.apps.length) {
+          firebase.initializeApp(configToUse);
+        }
+        auth = firebase.auth();
+        db = firebase.firestore();
+
+        const cred = await auth.signInAnonymously();
+        STATE.playerId = cred.user.uid;
+        firebaseReady = true;
+
+        const badge = document.getElementById('firebase-status-badge');
         if (badge) {
-          badge.textContent = 'Live Cloud Actif';
-          badge.className = 'text-[11px] px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-semibold';
+          badge.className = 'inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live Cloud Actif';
         }
-      } catch (e) {
-        console.warn('Firebase init error:', e);
+      } catch (err) {
+        console.warn('Firebase fallback local:', err);
+        firebaseReady = false;
+        STATE.playerId = localStorage.getItem('parisguessr_local_uid') || ('loc_' + Math.random().toString(36).slice(2, 10));
+        localStorage.setItem('parisguessr_local_uid', STATE.playerId);
+
+        const badge = document.getElementById('firebase-status-badge');
+        if (badge) {
+          badge.className = 'inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Mode Défi / Local';
+        }
       }
     }
 
-    /* ==================== MAPILLARY API SERVICE ==================== */
-    const MAPILLARY_SERVICE = {
-      async fetchLocations(zoneKey, count, onProgress) {
-        const zone = ZONES[zoneKey] || ZONES.paris;
-        const results = [];
-        const usedIds = new Set();
-        let attempts = 0;
-
-        while (results.length < count && attempts < count * 18) {
-          attempts++;
-          const lon = zone.minLon + Math.random() * (zone.maxLon - zone.minLon);
-          const lat = zone.minLat + Math.random() * (zone.maxLat - zone.minLat);
-          const delta = 0.0038;
-          const bbox = `${(lon - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lon + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
-
-          try {
-            const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(STATE.mapillaryToken)}&fields=id,computed_geometry,geometry,compass_angle,is_pano,thumb_2048_url,thumb_1024_url&bbox=${bbox}&limit=15`;
-            const res = await fetch(url);
-            if (!res.ok) continue;
-            const json = await res.json();
-            const items = (json.data || []).filter(img => !usedIds.has(img.id) && (img.thumb_2048_url || img.thumb_1024_url));
-            if (!items.length) continue;
-
-            const panos = items.filter(i => i.is_pano);
-            const pool = panos.length ? panos : items;
-            const chosen = pool[Math.floor(Math.random() * pool.length)];
-            const coords = (chosen.computed_geometry || chosen.geometry)?.coordinates;
-            if (!coords) continue;
-
-            usedIds.add(chosen.id);
-            results.push({
-              id: chosen.id,
-              lat: coords[1],
-              lng: coords[0],
-              compass: chosen.compass_angle || 0,
-              isPano: !!chosen.is_pano,
-              imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url
-            });
-            if (onProgress) onProgress(results.length, count);
-          } catch (e) { /* retry */ }
-        }
-        return results;
-      },
-
-      async fetchByIds(ids) {
-        const out = [];
-        for (const id of ids) {
-          const url = `https://graph.mapillary.com/${id}?access_token=${encodeURIComponent(STATE.mapillaryToken)}&fields=id,computed_geometry,geometry,compass_angle,is_pano,thumb_2048_url,thumb_1024_url`;
-          const res = await fetch(url);
-          if (!res.ok) continue;
-          const chosen = await res.json();
-          const coords = (chosen.computed_geometry || chosen.geometry)?.coordinates;
-          if (!coords) continue;
-          out.push({
-            id: chosen.id,
-            lat: coords[1],
-            lng: coords[0],
-            compass: chosen.compass_angle || 0,
-            isPano: !!chosen.is_pano,
-            imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url
-          });
-        }
-        return out;
-      }
-    };
-
-    /* ==================== VISIONNEUSE 360° THREE.JS ==================== */
-    const VIEWER_360 = {
-      scene: null, camera: null, renderer: null, sphere: null,
-      lon: 0, lat: 0, fov: 75, isDragging: false, startX: 0, startY: 0, startLon: 0, startLat: 0,
-      baseCompass: 0, initialized: false,
-
-      init() {
-        if (this.initialized) return;
-        const canvas = document.getElementById('viewer-canvas');
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-
-        const geo = new THREE.SphereGeometry(500, 60, 40);
-        geo.scale(-1, 1, 1);
-        const mat = new THREE.MeshBasicMaterial({ color: 0x111827 });
-        this.sphere = new THREE.Mesh(geo, mat);
-        this.scene.add(this.sphere);
-
-        const onDown = (x, y) => { this.isDragging = true; this.startX = x; this.startY = y; this.startLon = this.lon; this.startLat = this.lat; };
-        const onMove = (x, y) => {
-          if (!this.isDragging) return;
-          this.lon = (this.startX - x) * 0.18 + this.startLon;
-          this.lat = Math.max(-85, Math.min(85, (y - this.startY) * 0.18 + this.startLat));
-        };
-        const onUp = () => { this.isDragging = false; };
-
-        canvas.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-        window.addEventListener('mouseup', onUp);
-
-        canvas.addEventListener('touchstart', e => { if (e.touches.length === 1) onDown(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-        canvas.addEventListener('touchmove', e => { if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-        canvas.addEventListener('touchend', onUp);
-
-        canvas.addEventListener('wheel', e => {
-          this.fov = Math.max(30, Math.min(100, this.fov + e.deltaY * 0.04));
-          this.camera.fov = this.fov;
-          this.camera.updateProjectionMatrix();
-        }, { passive: true });
-
-        window.addEventListener('resize', () => {
-          this.camera.aspect = window.innerWidth / window.innerHeight;
-          this.camera.updateProjectionMatrix();
-          this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        this.initialized = true;
-        const animate = () => {
-          requestAnimationFrame(animate);
-          const phi = THREE.MathUtils.degToRad(90 - this.lat);
-          const theta = THREE.MathUtils.degToRad(this.lon);
-          this.camera.lookAt(500 * Math.sin(phi) * Math.cos(theta), 500 * Math.cos(phi), 500 * Math.sin(phi) * Math.sin(theta));
-          this.renderer.render(this.scene, this.camera);
-          this.updateCompassUI();
-        };
-        animate();
-      },
-
-      loadLocation(loc) {
-        this.init();
-        this.lon = 0; this.lat = 0; this.fov = 75;
-        this.camera.fov = 75; this.camera.updateProjectionMatrix();
-        this.baseCompass = loc.compass || 0;
-
-        const canvas = document.getElementById('viewer-canvas');
-        const fallback = document.getElementById('viewer-fallback-img');
-
-        if (loc.isPano) {
-          canvas.classList.remove('hidden');
-          fallback.classList.add('hidden');
-          const loader = new THREE.TextureLoader();
-          loader.setCrossOrigin('anonymous');
-          loader.load(loc.imageUrl, tex => {
-            this.sphere.material.map = tex;
-            this.sphere.material.color.setHex(0xffffff);
-            this.sphere.material.needsUpdate = true;
-          });
-        } else {
-          canvas.classList.add('hidden');
-          fallback.classList.remove('hidden');
-          fallback.src = loc.imageUrl;
-        }
-      },
-
-      updateCompassUI() {
-        const heading = ((Math.round(this.baseCompass + this.lon) % 360) + 360) % 360;
-        const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
-        const label = dirs[Math.round(heading / 45) % 8];
-        document.getElementById('hud-compass-text').textContent = `${label} ${heading}°`;
-        document.getElementById('hud-compass-icon').style.transform = `rotate(${-heading}deg)`;
-      }
-    };
-
-    /* ==================== CARTES LEAFLET (OPENSTREETMAP FRANCE) ==================== */
-    let guessMap = null, guessMarker = null, resultMap = null;
-
-    function createOsmTileLayer() {
-      const layer = L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap France',
-        maxZoom: 20
-      });
-      layer.on('tileerror', () => {
-        layer.setUrl('https://tile.openstreetmap.org/{z}/{x}/{y}.png');
-      });
-      return layer;
-    }
-
-    function initGuessMap(zoneKey) {
-      const z = ZONES[zoneKey] || ZONES.paris;
-      if (!guessMap) {
-        guessMap = L.map('guess-map', { zoomControl: false }).setView(z.center, z.zoom);
-        createOsmTileLayer().addTo(guessMap);
-        guessMap.on('click', e => {
-          STATE.currentGuess = { lat: e.latlng.lat, lng: e.latlng.lng };
-          if (guessMarker) guessMarker.setLatLng(e.latlng);
-          else guessMarker = L.marker(e.latlng).addTo(guessMap);
-
-          const btn = document.getElementById('btn-submit-guess');
-          btn.disabled = false;
-          btn.textContent = 'Valider ma position';
-          btn.className = 'w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-sm shadow-lg transition';
-        });
-      } else {
-        guessMap.setView(z.center, z.zoom);
-      }
-      if (guessMarker) { guessMap.removeLayer(guessMarker); guessMarker = null; }
-      STATE.currentGuess = null;
-      const btn = document.getElementById('btn-submit-guess');
-      btn.disabled = true;
-      btn.textContent = 'Place un repère sur la carte';
-      btn.className = 'w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-extrabold text-sm transition disabled:cursor-not-allowed';
-      setTimeout(() => guessMap.invalidateSize(), 150);
-    }
-
-    function toggleMobileMapDrawer(open) {
-      const drawer = document.getElementById('map-drawer');
-      if (open) {
-        drawer.classList.remove('translate-y-full');
-        setTimeout(() => guessMap && guessMap.invalidateSize(), 320);
-      } else {
-        drawer.classList.add('translate-y-full');
-      }
-    }
-
-    /* ==================== LOGIQUE DU LOBBY MULTIJOUEUR ==================== */
+    // =========================================================================
+    // 4. GESTION DU LOBBY MULTIJOUEUR, QR CODE & CODE MANUEL
+    // =========================================================================
     function generateRoomCode() {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       let code = '';
       for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
       return code;
     }
 
-    async function createLobbyFlow() {
-      const name = getPlayerName();
-      STATE.mode = 'lobby';
+    async function handleCreateLobby() {
+      ensureUsername();
+      const code = generateRoomCode();
+      STATE.isMultiplayer = true;
       STATE.isHost = true;
-      STATE.roomCode = generateRoomCode();
+      STATE.roomCode = code;
+      STATE.roundsData = [];
 
-      const initialLobby = {
-        code: STATE.roomCode,
+      const initialRoom = {
+        code,
         hostId: STATE.playerId,
+        zone: STATE.selectedZone,
+        duration: 30,
         status: 'waiting',
-        zone: STATE.zone,
-        timer: STATE.timerSeconds,
-        rounds: STATE.totalRounds,
+        rounds: [],
+        createdAt: Date.now(),
         players: {
-          [STATE.playerId]: { id: STATE.playerId, name, isHost: true, totalScore: 0, guesses: {} }
-        },
-        locationIds: []
+          [STATE.playerId]: {
+            id: STATE.playerId,
+            name: STATE.username,
+            isHost: true,
+            score: 0,
+            currentRound: 0,
+            roundGuesses: {}
+          }
+        }
       };
 
-      if (STATE.firebaseReady && STATE.db) {
-        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).set(initialLobby);
-        listenToLobby(STATE.roomCode);
+      if (firebaseReady && db) {
+        try {
+          await db.collection('rooms').doc(code).set(initialRoom);
+          subscribeToRoom(code);
+        } catch (e) {
+          console.error(e);
+          STATE.roomData = initialRoom;
+        }
       } else {
-        STATE.lobbyData = initialLobby;
-        renderLobbyUI();
+        STATE.roomData = initialRoom;
       }
+
+      renderLobbyUI(initialRoom);
       showScreen('screen-lobby');
     }
 
-    function listenToLobby(code) {
-      if (STATE.lobbyUnsubscribe) STATE.lobbyUnsubscribe();
-      STATE.lobbyUnsubscribe = STATE.db.collection('parisguessr_rooms').doc(code).onSnapshot(doc => {
-        if (!doc.exists) return;
-        const data = doc.data();
-        STATE.lobbyData = data;
-        STATE.zone = data.zone;
-        STATE.timerSeconds = data.timer;
-        STATE.totalRounds = data.rounds;
-
-        if (data.status === 'playing' && document.getElementById('screen-lobby').classList.contains('active')) {
-          startMultiplayerGameFromIds(data.locationIds);
-        } else if (document.getElementById('screen-round-result').classList.contains('active')) {
-          updateRoundResultMultiplayerUI();
-        } else if (document.getElementById('screen-final').classList.contains('active')) {
-          renderFinalMultiplayerLeaderboard();
-        } else {
-          renderLobbyUI();
-        }
-      });
+    function openJoinModal() {
+      ensureUsername();
+      document.getElementById('input-join-code').value = '';
+      openModal('modal-join');
+      setTimeout(() => document.getElementById('input-join-code').focus(), 100);
     }
 
-    function renderLobbyUI() {
-      const data = STATE.lobbyData;
-      if (!data) return;
-      document.getElementById('lobby-room-code').textContent = data.code;
-      const manualRoomEl = document.getElementById('lobby-manual-room-code');
-      if (manualRoomEl) manualRoomEl.textContent = data.code;
-      document.getElementById('lobby-role-badge').innerHTML = STATE.isHost
-        ? '<i class="fa-solid fa-crown mr-1"></i>Chef'
-        : '<i class="fa-solid fa-user mr-1"></i>Invité';
-
-      const qrBox = document.getElementById('lobby-qrcode');
-      qrBox.innerHTML = '';
-      const invitePayload = `${window.location.origin}${window.location.pathname}#room=${data.code}`;
-      new QRCode(qrBox, { text: invitePayload, width: 96, height: 96 });
-
-      const players = Object.values(data.players || {});
-      document.getElementById('lobby-players-count').textContent = players.length;
-      const list = document.getElementById('lobby-players-list');
-      list.innerHTML = players.map(p => `
-        <li class="flex items-center justify-between bg-slate-950/80 border border-slate-800 px-3 py-2 rounded-xl">
-          <div class="flex items-center gap-2.5">
-            <span class="w-7 h-7 rounded-lg bg-blue-600/25 text-blue-300 font-bold text-xs flex items-center justify-center">
-              ${p.name.slice(0, 2).toUpperCase()}
-            </span>
-            <span class="text-sm font-bold text-white">${p.name}</span>
-          </div>
-          ${p.isHost ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">Chef</span>' : '<span class="text-[10px] text-emerald-400">Prêt</span>'}
-        </li>
-      `).join('');
-
-      document.querySelectorAll('.lobby-zone-btn').forEach(b => {
-        const active = b.dataset.zone === data.zone;
-        b.disabled = !STATE.isHost;
-        b.className = `lobby-zone-btn py-2 px-2 rounded-xl text-xs font-bold border ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-700 bg-slate-950 text-slate-400'}`;
-      });
-      document.querySelectorAll('.lobby-timer-btn').forEach(b => {
-        const active = Number(b.dataset.timer) === data.timer;
-        b.disabled = !STATE.isHost;
-        b.className = `lobby-timer-btn py-2 rounded-xl text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
-      });
-      document.querySelectorAll('.lobby-rounds-btn').forEach(b => {
-        const active = Number(b.dataset.rounds) === data.rounds;
-        b.disabled = !STATE.isHost;
-        b.className = `lobby-rounds-btn py-2 rounded-xl text-xs font-bold ${active ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400'}`;
-      });
-
-      document.getElementById('btn-lobby-start').classList.toggle('hidden', !STATE.isHost);
-      document.getElementById('lobby-guest-wait').classList.toggle('hidden', STATE.isHost);
-    }
-
-    async function updateLobbySetting(key, value) {
-      if (!STATE.isHost) return;
-      if (key === 'zone') STATE.zone = value;
-      if (key === 'timer') STATE.timerSeconds = value;
-      if (key === 'rounds') STATE.totalRounds = value;
-      STATE.preloadedLobbyLocations = null;
-      const seedInput = document.getElementById('lobby-manual-seed-input');
-      if (seedInput) seedInput.value = '';
-
-      if (STATE.firebaseReady && STATE.db && STATE.roomCode) {
-        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({ [key]: value });
-      } else {
-        STATE.lobbyData[key] = value;
-        renderLobbyUI();
-      }
-    }
-
-    function copyLobbyInvite() {
-      const url = `${window.location.origin}${window.location.pathname}#room=${STATE.roomCode}`;
-      copyTextSafe(url, `Lien du salon ${STATE.roomCode} copié !`);
-    }
-
-    function copyManualRoomCode() {
-      if (!STATE.roomCode) return;
-      copyTextSafe(STATE.roomCode, `Code salon "${STATE.roomCode}" copié !`);
-    }
-
-    async function generateAndCopyLobbyManualSeed() {
-      const btn = document.getElementById('btn-generate-manual-seed');
-      const input = document.getElementById('lobby-manual-seed-input');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Tirage...';
-      }
-      try {
-        const locs = await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds);
-        if (!locs.length) {
-          showToast('Erreur Mapillary lors de la génération du code.');
-          return;
-        }
-        STATE.preloadedLobbyLocations = locs;
-        const seed = `${STATE.zone}@${STATE.timerSeconds}:${locs.map(l => l.id).join(',')}`;
-        if (input) input.value = seed;
-        copyTextSafe(seed, 'Code défi manuel copié ! Partagez-le à vos potes.');
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Générer & Copier';
-        }
-      }
-    }
-
-    function submitHomeManualCode() {
-      const raw = document.getElementById('input-home-manual-code').value.trim();
+    function handleDirectManualJoin() {
+      ensureUsername();
+      const raw = document.getElementById('home-manual-code').value.trim();
       if (!raw) {
-        showToast('Entrez un code salon ou un code défi.');
+        showToast('Entre un code salon (4 lettres) ou un code défi', '⚠️');
         return;
       }
-      handleScannedOrEnteredCode(raw);
-    }
-
-    function leaveLobby() {
-      if (STATE.lobbyUnsubscribe) STATE.lobbyUnsubscribe();
-      STATE.mode = 'solo';
-      showScreen('screen-home');
-    }
-
-    function openJoinModal() {
-      openModal('modal-join');
+      processManualCodeInput(raw);
     }
 
     async function submitJoinCode() {
       const raw = document.getElementById('input-join-code').value.trim();
       if (!raw) return;
       closeModal('modal-join');
-      await handleScannedOrEnteredCode(raw);
+      await processManualCodeInput(raw);
     }
 
-    async function handleScannedOrEnteredCode(raw) {
-      const name = getPlayerName();
-      const roomMatch = raw.match(/room=([A-Z]{4})/i) || (/^[A-Z]{4}$/i.test(raw) ? [null, raw.toUpperCase()] : null);
-      if (roomMatch) {
-        const code = roomMatch[1].toUpperCase();
-        if (!STATE.firebaseReady || !STATE.db) {
-          showToast('Connexion au serveur multijoueur indisponible.');
+    async function processManualCodeInput(rawInput) {
+      let cleaned = rawInput.trim();
+      if (cleaned.includes('?')) {
+        try {
+          const url = new URL(cleaned);
+          const roomParam = url.searchParams.get('room');
+          const seedParam = url.searchParams.get('seed');
+          if (roomParam) {
+            await joinLobbyByCode(roomParam.toUpperCase());
+            return;
+          }
+          if (seedParam) {
+            await startChallengeFromSeed(seedParam);
+            return;
+          }
+        } catch (_) {}
+      }
+
+      if (cleaned.toLowerCase().startsWith('seed=')) {
+        cleaned = cleaned.slice(5);
+      }
+
+      if (cleaned.includes('@') && cleaned.includes(':')) {
+        await startChallengeFromSeed(cleaned);
+      } else {
+        await joinLobbyByCode(cleaned.toUpperCase());
+      }
+    }
+
+    async function joinLobbyByCode(code) {
+      ensureUsername();
+      if (!firebaseReady || !db) {
+        showToast('Connexion Cloud indisponible : utilise un code défi manuel', '⚠️');
+        return;
+      }
+
+      try {
+        const docRef = db.collection('rooms').doc(code);
+        const snap = await docRef.get();
+        if (!snap.exists) {
+          showToast(`Salon "${code}" introuvable`, '❌');
           return;
         }
-        const ref = STATE.db.collection('parisguessr_rooms').doc(code);
-        const snap = await ref.get();
-        if (!snap.exists) { showToast('Salon introuvable : ' + code); return; }
 
-        STATE.mode = 'lobby';
-        STATE.isHost = false;
+        const data = snap.data();
+        STATE.isMultiplayer = true;
+        STATE.isHost = (data.hostId === STATE.playerId);
         STATE.roomCode = code;
-        await ref.update({
-          [`players.${STATE.playerId}`]: { id: STATE.playerId, name, isHost: false, totalScore: 0, guesses: {} }
+        STATE.selectedZone = data.zone || 'paris';
+
+        await docRef.update({
+          [`players.${STATE.playerId}`]: {
+            id: STATE.playerId,
+            name: STATE.username,
+            isHost: STATE.isHost,
+            score: 0,
+            currentRound: 0,
+            roundGuesses: {}
+          }
         });
-        listenToLobby(code);
+
+        subscribeToRoom(code);
         showScreen('screen-lobby');
-        return;
+      } catch (err) {
+        console.error(err);
+        showToast('Impossible de rejoindre le salon', '❌');
+      }
+    }
+
+    function subscribeToRoom(code) {
+      if (STATE.unsubscribeRoom) STATE.unsubscribeRoom();
+      STATE.unsubscribeRoom = db.collection('rooms').doc(code).onSnapshot(snap => {
+        if (!snap.exists) return;
+        const data = snap.data();
+        STATE.roomData = data;
+        STATE.selectedZone = data.zone || 'paris';
+
+        if (!document.getElementById('screen-lobby').classList.contains('hidden')) {
+          renderLobbyUI(data);
+        }
+
+        if (!document.getElementById('screen-round-result').classList.contains('hidden')) {
+          updateRoundResultMultiplayerUI(data);
+        }
+
+        if (data.status === 'playing' && data.rounds && data.rounds.length > 0 && STATE.roundsData.length === 0) {
+          STATE.roundsData = data.rounds;
+          launchGameRounds(data.rounds);
+        }
+      });
+    }
+
+    function renderLobbyUI(room) {
+      document.getElementById('lobby-room-code').textContent = room.code;
+      document.getElementById('lobby-manual-room-code').textContent = room.code;
+      document.getElementById('lobby-role-badge').textContent = STATE.isHost ? '👑 Hôte' : '🎮 Invité';
+      document.getElementById('lobby-mode-pill').textContent = ZONES[room.zone]?.label || 'Paris Intra-muros';
+
+      const qrContainer = document.getElementById('qrcode-container');
+      if (qrContainer.dataset.renderedCode !== room.code) {
+        qrContainer.innerHTML = '';
+        const inviteUrl = buildInviteUrl(room.code);
+        new QRCode(qrContainer, {
+          text: inviteUrl,
+          width: 156,
+          height: 156,
+          colorDark: '#090d16',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        qrContainer.dataset.renderedCode = room.code;
       }
 
-      const seedMatch = raw.match(/([a-z_]+)@(\d+):([0-9,]+)/i);
-      if (seedMatch) {
-        STATE.mode = 'solo';
-        STATE.zone = seedMatch[1];
-        STATE.timerSeconds = Number(seedMatch[2]);
-        const ids = seedMatch[3].split(',').filter(Boolean);
-        STATE.totalRounds = ids.length;
-        showScreen('screen-loading');
-        document.getElementById('loading-status').textContent = 'Chargement du défi partagé...';
-        const locs = await MAPILLARY_SERVICE.fetchByIds(ids);
-        beginLoadedGame(locs);
+      const hostControls = document.getElementById('host-controls-card');
+      const startBtn = document.getElementById('btn-start-lobby-game');
+      const guestMsg = document.getElementById('guest-waiting-msg');
+
+      if (STATE.isHost) {
+        hostControls.classList.remove('hidden');
+        startBtn.classList.remove('hidden');
+        guestMsg.classList.add('hidden');
       } else {
-        showToast('Code non reconnu');
-      }
-    }
-
-    /* ==================== SCANNER QR CODE CAMÉRA ==================== */
-    let html5QrCode = null;
-    function openQrScannerModal() {
-      openModal('modal-qr-scanner');
-      setTimeout(() => {
-        html5QrCode = new Html5Qrcode('qr-reader');
-        html5QrCode.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
-          decodedText => {
-            closeQrScannerModal();
-            handleScannedOrEnteredCode(decodedText);
-          },
-          () => {}
-        ).catch(() => {
-          document.getElementById('qr-scanner-status').textContent = 'Caméra indisponible ou permission refusée.';
-        });
-      }, 200);
-    }
-
-    function closeQrScannerModal() {
-      if (html5QrCode) {
-        html5QrCode.stop().catch(() => {});
-        html5QrCode = null;
-      }
-      closeModal('modal-qr-scanner');
-    }
-
-    /* ==================== DÉROULEMENT D'UNE PARTIE ==================== */
-    async function startSoloQuickGame() {
-      getPlayerName();
-      STATE.mode = 'solo';
-      await launchLocationSearchAndPlay();
-    }
-
-    async function hostStartLobbyGame() {
-      showScreen('screen-loading');
-      const locs = (STATE.preloadedLobbyLocations && STATE.preloadedLobbyLocations.length === STATE.totalRounds)
-        ? STATE.preloadedLobbyLocations
-        : await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds, (done, total) => {
-            document.getElementById('loading-status').textContent = `Recherche de panoramas 360° (${done}/${total})`;
-            document.getElementById('loading-progress-bar').style.width = `${(done / total) * 100}%`;
-          });
-
-      if (!locs.length) {
-        showToast('Impossible de récupérer des photos Mapillary pour le moment.');
-        showScreen('screen-home');
-        return;
+        hostControls.classList.add('hidden');
+        startBtn.classList.add('hidden');
+        guestMsg.classList.remove('hidden');
       }
 
-      if (STATE.firebaseReady && STATE.db && STATE.roomCode) {
-        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({
-          status: 'playing',
-          locationIds: locs.map(l => l.id)
-        });
-      }
-      beginLoadedGame(locs);
-    }
-
-    async function startMultiplayerGameFromIds(ids) {
-      showScreen('screen-loading');
-      document.getElementById('loading-status').textContent = 'Synchronisation des panoramas du salon...';
-      const locs = await MAPILLARY_SERVICE.fetchByIds(ids);
-      beginLoadedGame(locs);
-    }
-
-    async function launchLocationSearchAndPlay() {
-      showScreen('screen-loading');
-      document.getElementById('loading-progress-bar').style.width = '5%';
-      const locs = await MAPILLARY_SERVICE.fetchLocations(STATE.zone, STATE.totalRounds, (done, total) => {
-        document.getElementById('loading-status').textContent = `Recherche de panoramas 360° sur Mapillary (${done}/${total})`;
-        document.getElementById('loading-progress-bar').style.width = `${(done / total) * 100}%`;
+      document.querySelectorAll('#lobby-zone-selector .lobby-zone-btn').forEach(btn => {
+        const active = btn.dataset.zone === room.zone;
+        btn.className = active
+          ? 'lobby-zone-btn py-2 px-2 rounded-xl border border-indigo-500 bg-indigo-500/20 text-xs font-bold text-white'
+          : 'lobby-zone-btn py-2 px-2 rounded-xl border border-slate-700 bg-slate-900/70 text-xs font-bold text-slate-300';
       });
 
-      if (!locs.length) {
-        showToast('Aucune image trouvée sur Mapillary. Réessayez.');
-        showScreen('screen-home');
-        return;
-      }
-      beginLoadedGame(locs);
+      const players = Object.values(room.players || {});
+      document.getElementById('lobby-player-count').textContent = `${players.length} joueur${players.length > 1 ? 's' : ''}`;
+      const listEl = document.getElementById('lobby-players-list');
+      listEl.innerHTML = players.map(p => `
+        <div class="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-3.5 py-2.5 rounded-2xl">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-extrabold text-xs">
+              ${escapeHtml(p.name.slice(0, 2).toUpperCase())}
+            </div>
+            <span class="font-bold text-sm text-white">${escapeHtml(p.name)}</span>
+          </div>
+          <span class="text-[11px] font-bold px-2 py-0.5 rounded-md ${p.isHost ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300'}">
+            ${p.isHost ? '👑 Chef' : 'Prêt'}
+          </span>
+        </div>
+      `).join('');
     }
 
-    function beginLoadedGame(locs) {
-      STATE.locations = locs;
-      STATE.totalRounds = locs.length;
+    async function changeLobbyZone(zoneKey) {
+      if (!STATE.isHost) return;
+      STATE.selectedZone = zoneKey;
+      STATE.roundsData = [];
+      if (firebaseReady && db && STATE.roomCode) {
+        await db.collection('rooms').doc(STATE.roomCode).update({ zone: zoneKey });
+      } else if (STATE.roomData) {
+        STATE.roomData.zone = zoneKey;
+        renderLobbyUI(STATE.roomData);
+      }
+    }
+
+    function buildInviteUrl(code) {
+      const base = window.location.href.split('?')[0].split('#')[0];
+      return `${base}?room=${encodeURIComponent(code)}`;
+    }
+
+    function copyRoomCodeOnly() {
+      if (!STATE.roomCode) return;
+      navigator.clipboard?.writeText(STATE.roomCode);
+      showToast(`Code salon "${STATE.roomCode}" copié !`, '📋');
+    }
+
+    async function copyManualSeedCode() {
+      showToast('Génération des 5 panoramas 360°...', '🛰️');
+      if (!STATE.roundsData || STATE.roundsData.length < 5) {
+        STATE.roundsData = await fetchFiveMapillaryPanoramas(STATE.selectedZone);
+      }
+      const seed = encodeChallengeSeed(STATE.selectedZone, 30, STATE.roundsData);
+      document.getElementById('lobby-offline-seed-preview').textContent = seed;
+      navigator.clipboard?.writeText(seed);
+      showToast('Code Défi Manuel copié ! Envoie-le à tes amis', '🔑');
+    }
+
+    function copyInviteLink() {
+      const url = buildInviteUrl(STATE.roomCode);
+      navigator.clipboard?.writeText(url);
+      showToast('Lien du salon copié !', '🔗');
+    }
+
+    async function shareInviteLink() {
+      const url = buildInviteUrl(STATE.roomCode);
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'PinPointParis – Rejoins ma partie !',
+            text: `Rejoins mon salon PinPointParis (Code : ${STATE.roomCode}) !`,
+            url
+          });
+        } catch (_) {}
+      } else {
+        copyInviteLink();
+      }
+    }
+
+    function leaveLobby() {
+      if (STATE.unsubscribeRoom) {
+        STATE.unsubscribeRoom();
+        STATE.unsubscribeRoom = null;
+      }
+      STATE.isMultiplayer = false;
+      STATE.roomCode = null;
+      STATE.roundsData = [];
+      showScreen('screen-home');
+    }
+
+    // =========================================================================
+    // 5. SCANNER QR CODE CAMÉRA
+    // =========================================================================
+    function openScannerModal() {
+      ensureUsername();
+      openModal('modal-scanner');
+      const qrReaderEl = document.getElementById('qr-reader');
+      qrReaderEl.innerHTML = '';
+
+      if (typeof Html5Qrcode === 'undefined') {
+        showToast('Module caméra indisponible', '⚠️');
+        return;
+      }
+
+      STATE.html5QrScanner = new Html5Qrcode('qr-reader');
+      STATE.html5QrScanner.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        async (decodedText) => {
+          await closeScannerModal();
+          await processManualCodeInput(decodedText);
+        },
+        () => {}
+      ).catch(() => {
+        showToast('Autorise la caméra pour scanner un QR Code', '📷');
+      });
+    }
+
+    async function closeScannerModal() {
+      if (STATE.html5QrScanner) {
+        try {
+          await STATE.html5QrScanner.stop();
+          STATE.html5QrScanner.clear();
+        } catch (_) {}
+        STATE.html5QrScanner = null;
+      }
+      closeModal('modal-scanner');
+    }
+
+    // =========================================================================
+    // 6. MAPILLARY API v4 : RÉCUPÉRATION STRICTE DE 5 VRAIS PANORAMAS 360°
+    // =========================================================================
+    function getRandomCoordInZone(zoneKey) {
+      const [minLng, minLat, maxLng, maxLat] = ZONES[zoneKey].bbox;
+      const lng = minLng + Math.random() * (maxLng - minLng);
+      const lat = minLat + Math.random() * (maxLat - minLat);
+      return { lat, lng };
+    }
+
+    async function fetchMapillary360Near(lat, lng, delta = 0.015) {
+      const token = STATE.mapillaryToken;
+      if (!token) return null;
+
+      const bbox = `${(lng - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lng + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
+      const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,thumb_1024_url,is_pano&bbox=${bbox}&is_pano=true&limit=25`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const json = await res.json();
+        if (!json.data || json.data.length === 0) return null;
+
+        const panos = json.data.filter(img => img.is_pano === true && (img.thumb_2048_url || img.thumb_1024_url));
+        if (panos.length === 0) return null;
+
+        const chosen = panos[Math.floor(Math.random() * panos.length)];
+        const coords = chosen.computed_geometry?.coordinates || chosen.geometry?.coordinates || [lng, lat];
+
+        return {
+          imageId: chosen.id,
+          imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url,
+          lat: coords[1],
+          lng: coords[0],
+          isPano: true,
+          label: `${ZONES[STATE.selectedZone].label} (360°)`
+        };
+      } catch (err) {
+        console.warn('Erreur Mapillary:', err);
+        return null;
+      }
+    }
+
+    async function fetchMapillaryImageById(imageId) {
+      const token = STATE.mapillaryToken;
+      if (!token) return null;
+      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,thumb_1024_url,is_pano`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const coords = data.computed_geometry?.coordinates || data.geometry?.coordinates;
+        if (!coords) return null;
+        return {
+          imageId: data.id,
+          imageUrl: data.thumb_2048_url || data.thumb_1024_url,
+          lat: coords[1],
+          lng: coords[0],
+          isPano: data.is_pano === true,
+          label: `Défi 360° #${data.id.slice(-4)}`
+        };
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async function fetchFiveMapillaryPanoramas(zoneKey) {
+      const results = [];
+      const usedIds = new Set();
+      const fallbacks = [...(FALLBACK_COORDS[zoneKey] || FALLBACK_COORDS.paris)].sort(() => Math.random() - 0.5);
+
+      const bar = document.getElementById('loading-progress-bar');
+      const stepText = document.getElementById('loading-step-text');
+
+      for (let i = 0; i < 5; i++) {
+        bar.style.width = `${(i + 1) * 18}%`;
+        stepText.textContent = `Recherche panorama 360° ${i + 1}/5...`;
+
+        let found = null;
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const rnd = getRandomCoordInZone(zoneKey);
+          const searchRadius = attempt < 3 ? 0.016 : 0.032;
+          const candidate = await fetchMapillary360Near(rnd.lat, rnd.lng, searchRadius);
+          if (candidate && candidate.isPano && !usedIds.has(candidate.imageId)) {
+            found = candidate;
+            break;
+          }
+        }
+
+        if (!found) {
+          for (let fIdx = 0; fIdx < fallbacks.length; fIdx++) {
+            const fb = fallbacks[(i + fIdx) % fallbacks.length];
+            const candidate = await fetchMapillary360Near(fb.lat, fb.lng, 0.014);
+            if (candidate && candidate.isPano && !usedIds.has(candidate.imageId)) {
+              candidate.label = fb.name;
+              found = candidate;
+              break;
+            }
+          }
+        }
+
+        if (!found) {
+          const fb = fallbacks[i % fallbacks.length];
+          found = {
+            imageId: 'fallback_' + i,
+            imageUrl: null,
+            lat: fb.lat,
+            lng: fb.lng,
+            isPano: true,
+            label: fb.name
+          };
+        }
+
+        usedIds.add(found.imageId);
+        results.push(found);
+      }
+
+      bar.style.width = '100%';
+      stepText.textContent = '5 panoramas 360° prêts !';
+      return results;
+    }
+
+    // =========================================================================
+    // 7. DÉMARRAGE DE PARTIE (SOLO, HÔTE LOBBY, DÉFI SEED)
+    // =========================================================================
+    async function startSoloQuickGame() {
+      ensureUsername();
+      STATE.isMultiplayer = false;
+      STATE.isHost = true;
+      STATE.roomCode = null;
+      showScreen('screen-loading');
+
+      const rounds = await fetchFiveMapillaryPanoramas(STATE.selectedZone);
+      STATE.roundsData = rounds;
+      launchGameRounds(rounds);
+    }
+
+    async function hostStartGame() {
+      if (!STATE.isHost) return;
+      showScreen('screen-loading');
+
+      let rounds = STATE.roundsData;
+      if (!rounds || rounds.length < 5) {
+        rounds = await fetchFiveMapillaryPanoramas(STATE.selectedZone);
+        STATE.roundsData = rounds;
+      }
+
+      if (firebaseReady && db && STATE.roomCode) {
+        await db.collection('rooms').doc(STATE.roomCode).update({
+          status: 'playing',
+          rounds
+        });
+      }
+      launchGameRounds(rounds);
+    }
+
+    async function startChallengeFromSeed(seedStr) {
+      ensureUsername();
+      STATE.isMultiplayer = false;
+      STATE.isHost = true;
+      showScreen('screen-loading');
+
+      try {
+        const [meta, idsPart] = seedStr.split(':');
+        const [zoneKey, durStr] = meta.split('@');
+        if (ZONES[zoneKey]) STATE.selectedZone = zoneKey;
+        STATE.roundDuration = parseInt(durStr, 10) || 30;
+
+        const ids = idsPart.split(',').filter(Boolean).slice(0, 5);
+        const rounds = [];
+        for (let i = 0; i < ids.length; i++) {
+          document.getElementById('loading-step-text').textContent = `Chargement défi 360° ${i + 1}/${ids.length}...`;
+          const item = await fetchMapillaryImageById(ids[i]);
+          if (item) rounds.push(item);
+        }
+
+        if (rounds.length === 0) {
+          throw new Error('Aucun panorama valide dans ce code défi');
+        }
+        STATE.roundsData = rounds;
+        launchGameRounds(rounds);
+      } catch (err) {
+        console.error(err);
+        showToast('Code défi invalide ou expiré', '❌');
+        showScreen('screen-home');
+      }
+    }
+
+    function launchGameRounds(rounds) {
+      STATE.roundsData = rounds;
       STATE.currentRoundIndex = 0;
-      STATE.roundHistory = [];
       STATE.totalScore = 0;
+      STATE.roundHistory = [];
       startRound(0);
     }
 
+    // =========================================================================
+    // 8. MOTEUR DE MANCHE (RENDU THREE.JS 360° + MINIMAP LEAFLET + CHRONO)
+    // =========================================================================
     function startRound(index) {
       STATE.currentRoundIndex = index;
-      const loc = STATE.locations[index];
-      document.getElementById('hud-round').textContent = `${index + 1} / ${STATE.totalRounds}`;
-      document.getElementById('hud-score').textContent = STATE.totalScore.toLocaleString('fr-FR');
-      toggleMobileMapDrawer(false);
+      STATE.hasSubmittedCurrentRound = false;
+      STATE.currentGuessLatLng = null;
+      STATE.timeLeft = STATE.roundDuration;
+      STATE.roundStartTime = Date.now();
 
       showScreen('screen-game');
-      VIEWER_360.loadLocation(loc);
-      initGuessMap(STATE.zone);
 
-      STATE.roundStartTime = performance.now();
+      document.getElementById('hud-round').textContent = `${index + 1} / ${STATE.roundsData.length}`;
+      document.getElementById('hud-score').textContent = STATE.totalScore.toLocaleString('fr-FR');
+      const timerBox = document.getElementById('hud-timer-box');
+      timerBox.classList.remove('timer-urgent');
+      updateTimerDisplay(STATE.timeLeft);
+
+      const submitBtn = document.getElementById('btn-submit-guess');
+      submitBtn.disabled = true;
+      submitBtn.className = 'w-full py-3.5 px-5 rounded-2xl bg-slate-800/90 text-slate-500 border border-slate-700/80 font-extrabold text-sm shadow-2xl transition flex items-center justify-center gap-2 disabled:cursor-not-allowed';
+      document.getElementById('btn-submit-label').textContent = 'Clique sur la carte pour placer ton repère';
+
+      const wrap = document.getElementById('minimap-wrapper');
+      wrap.classList.remove('expanded');
+      document.getElementById('toggle-map-icon').textContent = '⤢';
+      document.getElementById('toggle-map-label').textContent = 'Agrandir';
+
+      const hint = document.getElementById('pano-hint-pill');
+      hint.style.opacity = '1';
+      setTimeout(() => { hint.style.opacity = '0'; }, 4000);
+
+      const roundObj = STATE.roundsData[index];
+      render360Panorama(roundObj);
+      initGuessMinimap();
       startRoundTimer();
+    }
+
+    function render360Panorama(roundObj) {
+      const container = document.getElementById('pano-canvas-container');
+
+      if (!STATE.three.renderer) {
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1100);
+        camera.target = new THREE.Vector3(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.innerHTML = '';
+        container.appendChild(renderer.domElement);
+
+        const geometry = new THREE.SphereGeometry(500, 64, 40);
+        geometry.scale(-1, 1, 1);
+        const material = new THREE.MeshBasicMaterial({ color: 0x1e293b });
+        const mesh = new THREE.Mesh(geometry, material);
+        scene.add(mesh);
+
+        STATE.three = {
+          ...STATE.three,
+          scene,
+          camera,
+          renderer,
+          mesh
+        };
+
+        const onPointerDown = (clientX, clientY) => {
+          STATE.three.isDragging = true;
+          STATE.three.startX = clientX;
+          STATE.three.startY = clientY;
+          STATE.three.startLon = STATE.three.lon;
+          STATE.three.startLat = STATE.three.lat;
+        };
+
+        const onPointerMove = (clientX, clientY) => {
+          if (!STATE.three.isDragging) return;
+          STATE.three.lon = (STATE.three.startX - clientX) * 0.22 + STATE.three.startLon;
+          STATE.three.lat = (clientY - STATE.three.startY) * 0.22 + STATE.three.startLat;
+        };
+
+        const onPointerUp = () => {
+          STATE.three.isDragging = false;
+        };
+
+        container.addEventListener('mousedown', e => onPointerDown(e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => onPointerMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', onPointerUp);
+
+        container.addEventListener('touchstart', e => {
+          if (e.touches.length === 1) onPointerDown(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        container.addEventListener('touchmove', e => {
+          if (e.touches.length === 1) onPointerMove(e.touches[0].clientX, e.touches[0].clientY);
+        }, { passive: true });
+        container.addEventListener('touchend', onPointerUp);
+
+        window.addEventListener('resize', () => {
+          if (!STATE.three.renderer) return;
+          STATE.three.camera.aspect = window.innerWidth / window.innerHeight;
+          STATE.three.camera.updateProjectionMatrix();
+          STATE.three.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        const animate = () => {
+          STATE.three.animId = requestAnimationFrame(animate);
+          STATE.three.lat = Math.max(-85, Math.min(85, STATE.three.lat));
+          const phi = THREE.MathUtils.degToRad(90 - STATE.three.lat);
+          const theta = THREE.MathUtils.degToRad(STATE.three.lon);
+
+          const x = 500 * Math.sin(phi) * Math.cos(theta);
+          const y = 500 * Math.cos(phi);
+          const z = 500 * Math.sin(phi) * Math.sin(theta);
+
+          STATE.three.camera.lookAt(x, y, z);
+          STATE.three.renderer.render(STATE.three.scene, STATE.three.camera);
+        };
+        animate();
+      }
+
+      STATE.three.lon = 0;
+      STATE.three.lat = 0;
+
+      if (roundObj.imageUrl) {
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin('anonymous');
+        loader.load(
+          roundObj.imageUrl,
+          texture => {
+            texture.minFilter = THREE.LinearFilter;
+            STATE.three.mesh.material.map = texture;
+            STATE.three.mesh.material.color.setHex(0xffffff);
+            STATE.three.mesh.material.needsUpdate = true;
+          },
+          undefined,
+          () => applyFallbackSkyTexture(roundObj)
+        );
+      } else {
+        applyFallbackSkyTexture(roundObj);
+      }
+    }
+
+    function applyFallbackSkyTexture(roundObj) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      const grad = ctx.createLinearGradient(0, 0, 0, 512);
+      grad.addColorStop(0, '#1e1b4b');
+      grad.addColorStop(0.5, '#312e81');
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1024, 512);
+
+      ctx.fillStyle = '#e0e7ff';
+      ctx.font = 'bold 28px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Indice : ${roundObj.label}`, 512, 245);
+      ctx.font = '18px Inter, sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('Vérifie ta connexion Mapillary pour charger la vue 360°', 512, 285);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      STATE.three.mesh.material.map = tex;
+      STATE.three.mesh.material.color.setHex(0xffffff);
+      STATE.three.mesh.material.needsUpdate = true;
+    }
+
+    function resetCameraOrientation() {
+      STATE.three.lon = 0;
+      STATE.three.lat = 0;
+    }
+
+    function initGuessMinimap() {
+      const zone = ZONES[STATE.selectedZone];
+      if (STATE.guessMap) {
+        STATE.guessMap.remove();
+        STATE.guessMap = null;
+        STATE.guessMarker = null;
+      }
+
+      STATE.guessMap = L.map('guess-map', {
+        zoomControl: false,
+        attributionControl: false
+      }).setView(zone.center, zone.zoom);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+      }).addTo(STATE.guessMap);
+
+      STATE.guessMap.on('click', (e) => {
+        if (STATE.hasSubmittedCurrentRound) return;
+        placeGuessPin(e.latlng);
+      });
+
+      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 120);
+    }
+
+    function placeGuessPin(latlng) {
+      STATE.currentGuessLatLng = latlng;
+      const pinIcon = L.divIcon({
+        className: '',
+        html: `<div class="custom-pin w-7 h-7 bg-indigo-600">📍</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+
+      if (STATE.guessMarker) {
+        STATE.guessMarker.setLatLng(latlng);
+      } else {
+        STATE.guessMarker = L.marker(latlng, { icon: pinIcon }).addTo(STATE.guessMap);
+      }
+
+      const btn = document.getElementById('btn-submit-guess');
+      btn.disabled = false;
+      btn.className = 'w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm shadow-2xl transition flex items-center justify-center gap-2 cursor-pointer';
+      document.getElementById('btn-submit-label').textContent = 'Valider ma position';
+    }
+
+    function toggleMinimapSize(e) {
+      if (e) e.stopPropagation();
+      const wrap = document.getElementById('minimap-wrapper');
+      const isExpanded = wrap.classList.toggle('expanded');
+      document.getElementById('toggle-map-icon').textContent = isExpanded ? '⤡' : '⤢';
+      document.getElementById('toggle-map-label').textContent = isExpanded ? 'Réduire' : 'Agrandir';
+      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 300);
     }
 
     function startRoundTimer() {
       clearInterval(STATE.timerInterval);
-      const timerEl = document.getElementById('hud-timer');
-      if (!STATE.timerSeconds || STATE.timerSeconds <= 0) {
-        timerEl.textContent = '∞';
-        return;
-      }
-      let remaining = STATE.timerSeconds;
-      const format = s => `00:${String(Math.max(0, s)).padStart(2, '0')}`;
-      timerEl.textContent = format(remaining);
-      timerEl.classList.remove('text-rose-500');
-
       STATE.timerInterval = setInterval(() => {
-        remaining--;
-        timerEl.textContent = format(remaining);
-        if (remaining <= 5) timerEl.classList.add('text-rose-500');
-        if (remaining <= 0) {
+        STATE.timeLeft -= 1;
+        updateTimerDisplay(Math.max(0, STATE.timeLeft));
+
+        if (STATE.timeLeft <= 7 && STATE.timeLeft > 0) {
+          document.getElementById('hud-timer-box').classList.add('timer-urgent');
+        }
+
+        if (STATE.timeLeft <= 0) {
           clearInterval(STATE.timerInterval);
-          submitPlayerGuess(true);
+          if (!STATE.hasSubmittedCurrentRound) {
+            submitPlayerGuess(true);
+          }
         }
       }, 1000);
     }
 
+    function updateTimerDisplay(sec) {
+      const m = String(Math.floor(sec / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      document.getElementById('hud-timer').textContent = `${m}:${s}`;
+    }
+
+    // =========================================================================
+    // 9. CALCUL DE SCORE, RÉSULTAT DE MANCHE & SYNCHRO ATTENTE JOUEURS
+    // =========================================================================
     function computeDistanceMeters(lat1, lon1, lat2, lon2) {
       const R = 6371000;
       const toRad = d => (d * Math.PI) / 180;
       const dLat = toRad(lat2 - lat1);
       const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      return Math.round(2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.round(R * c);
     }
 
-    async function submitPlayerGuess(timedOut = false) {
+    function calculateRoundPoints(distanceMeters, zoneKey) {
+      if (distanceMeters === null || distanceMeters === undefined) return 0;
+      if (distanceMeters <= 25) return 5000;
+      const maxKm = ZONES[zoneKey]?.maxDistKm || 12;
+      const maxMeters = maxKm * 1000;
+      const score = Math.round(5000 * Math.exp(-3.2 * (distanceMeters / maxMeters)));
+      return Math.max(0, Math.min(5000, score));
+    }
+
+    function formatDistance(meters) {
+      if (meters === null || meters === undefined) return 'Temps écoulé';
+      if (meters < 1000) return `${meters} m`;
+      return `${(meters / 1000).toFixed(2)} km`;
+    }
+
+    async function submitPlayerGuess(isTimeout = false) {
+      if (STATE.hasSubmittedCurrentRound) return;
+      STATE.hasSubmittedCurrentRound = true;
       clearInterval(STATE.timerInterval);
-      toggleMobileMapDrawer(false);
 
-      const loc = STATE.locations[STATE.currentRoundIndex];
-      const elapsedSec = Math.max(0.1, (performance.now() - STATE.roundStartTime) / 1000);
-      let distance = null;
+      const roundObj = STATE.roundsData[STATE.currentRoundIndex];
+      const elapsedSec = Math.min(STATE.roundDuration, Math.round((Date.now() - STATE.roundStartTime) / 1000));
+
+      let distMeters = null;
       let points = 0;
+      let guessCoords = null;
 
-      if (!timedOut && STATE.currentGuess) {
-        distance = computeDistanceMeters(loc.lat, loc.lng, STATE.currentGuess.lat, STATE.currentGuess.lng);
-        points = distance <= 20 ? 5000 : Math.round(5000 * Math.exp(-distance / 2200));
+      if (STATE.currentGuessLatLng) {
+        guessCoords = {
+          lat: STATE.currentGuessLatLng.lat,
+          lng: STATE.currentGuessLatLng.lng
+        };
+        distMeters = computeDistanceMeters(guessCoords.lat, guessCoords.lng, roundObj.lat, roundObj.lng);
+        points = calculateRoundPoints(distMeters, STATE.selectedZone);
       }
 
       STATE.totalScore += points;
       const roundEntry = {
-        round: STATE.currentRoundIndex + 1,
-        target: loc,
-        guess: timedOut ? null : STATE.currentGuess,
-        distance,
-        timeSec: elapsedSec,
-        points
+        roundIndex: STATE.currentRoundIndex,
+        points,
+        distanceMeters: distMeters,
+        elapsedSec,
+        guessCoords,
+        targetCoords: { lat: roundObj.lat, lng: roundObj.lng },
+        label: roundObj.label
       };
       STATE.roundHistory.push(roundEntry);
 
-      if (STATE.mode === 'lobby' && STATE.firebaseReady && STATE.db && STATE.roomCode) {
-        const roundKey = `r${STATE.currentRoundIndex}`;
-        const guessPayload = {
-          lat: roundEntry.guess ? roundEntry.guess.lat : null,
-          lng: roundEntry.guess ? roundEntry.guess.lng : null,
-          distance,
-          points,
-          timeSec: Number(elapsedSec.toFixed(1))
-        };
-        await STATE.db.collection('parisguessr_rooms').doc(STATE.roomCode).update({
-          [`players.${STATE.playerId}.totalScore`]: STATE.totalScore,
-          [`players.${STATE.playerId}.guesses.${roundKey}`]: guessPayload
-        });
+      if (STATE.isMultiplayer && firebaseReady && db && STATE.roomCode) {
+        try {
+          await db.collection('rooms').doc(STATE.roomCode).update({
+            [`players.${STATE.playerId}.score`]: STATE.totalScore,
+            [`players.${STATE.playerId}.currentRound`]: STATE.currentRoundIndex + 1,
+            [`players.${STATE.playerId}.roundGuesses.${STATE.currentRoundIndex}`]: {
+              points,
+              distanceMeters: distMeters,
+              elapsedSec,
+              guessCoords
+            }
+          });
+        } catch (err) {
+          console.error('Erreur sync score:', err);
+        }
       }
 
-      showRoundResult(roundEntry);
+      showRoundResultScreen(roundEntry);
     }
 
-    let resultMultiMarkers = [];
-    let currentRoundBanter = '';
+    function showRoundResultScreen(entry) {
+      showScreen('screen-round-result');
 
-    function generateWaitingBanter(players, roundKey) {
-      const done = players.filter(p => p.guesses && p.guesses[roundKey] !== undefined);
-      const pending = players.filter(p => !p.guesses || p.guesses[roundKey] === undefined);
+      const rNum = STATE.currentRoundIndex + 1;
+      const totalR = STATE.roundsData.length;
+      document.getElementById('result-round-badge').textContent = `Résultat Manche ${rNum}/${totalR}`;
+      document.getElementById('result-location-name').textContent = entry.label;
+      document.getElementById('result-points-earned').textContent = `+${entry.points.toLocaleString('fr-FR')} pts`;
+      document.getElementById('result-distance-text').textContent = formatDistance(entry.distanceMeters);
 
-      // Clin d'œil aléatoire surprise sur Devora
-      if (Math.random() < 0.28) {
-        const devoraJokes = [
-          "Flash info : Devora a encore les cheveux gras aujourd'hui, le shampoing sec n'a rien pu faire.",
-          "Alerte météo : brume brillante signalée du côté des cheveux gras de Devora.",
-          "Fun fact : on peut faire cuire des frites avec les cheveux gras de Devora entre deux manches."
-        ];
-        return devoraJokes[Math.floor(Math.random() * devoraJokes.length)];
-      }
-
-      const quips = [];
-
-      // Commentaires sur ceux qui ont déjà validé (le plus loin, le plus proche, le plus rapide)
-      const validGuesses = done.filter(p => p.guesses[roundKey].distance !== null);
-      if (validGuesses.length > 0) {
-        const worst = [...validGuesses].sort((a, b) => b.guesses[roundKey].distance - a.guesses[roundKey].distance)[0];
-        const best = [...validGuesses].sort((a, b) => a.guesses[roundKey].distance - b.guesses[roundKey].distance)[0];
-        const fastest = [...done].sort((a, b) => (a.guesses[roundKey].timeSec || 99) - (b.guesses[roundKey].timeSec || 99))[0];
-
-        if (worst.guesses[roundKey].distance >= 1500) {
-          quips.push(`${worst.name} s'est complètement perdu ! (${(worst.guesses[roundKey].distance / 1000).toFixed(1)} km à côté...)`);
-          quips.push(`Envoyez une équipe de secours pour ${worst.name}, il a cru qu'on était en Creuse.`);
-        } else if (worst.guesses[roundKey].distance >= 500) {
-          quips.push(`${worst.name} a cliqué les yeux fermés sur la carte !`);
-        }
-
-        if (best.guesses[roundKey].distance <= 80) {
-          quips.push(`${best.name} habite littéralement dans cet immeuble (${best.guesses[roundKey].distance} m) !`);
-        }
-
-        if (fastest && fastest.guesses[roundKey].timeSec <= 6) {
-          quips.push(`${fastest.name} a dégainé en ${fastest.guesses[roundKey].timeSec}s, même pas besoin de regarder autour !`);
-        }
-      }
-
-      // Commentaires sur les retardataires
-      if (pending.length > 0) {
-        const target = pending[Math.floor(Math.random() * pending.length)];
-        quips.push(`${target.name} est en train de lire chaque plaque d'égout pour se repérer...`);
-        quips.push(`Quelqu'un réveille ${target.name}, il est bloqué devant un kebab depuis 20 secondes !`);
-        quips.push(`${target.name} cherche encore où est le Nord...`);
-      }
-
-      if (!quips.length) {
-        return "Tout le monde affûte son sens de l'orientation parisien...";
-      }
-      return quips[Math.floor(Math.random() * quips.length)];
-    }
-
-    function updateRoundResultMultiplayerUI() {
-      const multiBox = document.getElementById('res-multi-board');
       const nextBtn = document.getElementById('btn-next-round');
-      const waitBanner = document.getElementById('res-waiting-banner');
-      const waitText = document.getElementById('res-waiting-text');
-      const banterBox = document.getElementById('res-banter-box');
-      const banterText = document.getElementById('res-banter-text');
-      const progressBadge = document.getElementById('res-multi-progress');
-      const isLastRound = (STATE.currentRoundIndex + 1) >= STATE.totalRounds;
+      const nextLabel = document.getElementById('btn-next-round-label');
+      nextLabel.textContent = rNum < totalR ? 'Manche suivante' : 'Voir le podium final';
 
-      if (STATE.mode !== 'lobby' || !STATE.lobbyData?.players) {
-        multiBox.classList.add('hidden');
-        if (banterBox) banterBox.classList.add('hidden');
+      if (STATE.isMultiplayer && STATE.roomData) {
+        updateRoundResultMultiplayerUI(STATE.roomData);
+      } else {
+        document.getElementById('round-waiting-banner').classList.add('hidden');
         nextBtn.disabled = false;
-        nextBtn.className = 'flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-lg transition';
-        nextBtn.innerHTML = isLastRound
-          ? 'Voir le podium final <i class="fa-solid fa-trophy ml-1.5"></i>'
-          : 'Manche suivante <i class="fa-solid fa-arrow-right ml-1.5"></i>';
-        return;
+        renderResultMap(entry, []);
+        renderRoundLeaderboard([
+          { name: STATE.username, points: entry.points, distanceMeters: entry.distanceMeters, totalScore: STATE.totalScore, isMe: true }
+        ]);
+      }
+    }
+
+    function generateWaitingBanter(rows, pendingPlayers) {
+      const devoraPunchlines = [
+        "Info flash : Devora a encore les cheveux gras aujourd'hui...",
+        "Selon nos capteurs Mapillary, les cheveux gras de Devora brillent jusqu'au périphérique !",
+        "Breaking News : Devora a oublié son shampoing sec avant de lancer la partie...",
+        "La Tour Eiffel capte le wifi grâce aux cheveux gras de Devora !"
+      ];
+      if (Math.random() < 0.35) {
+        return {
+          emoji: '🧴',
+          text: devoraPunchlines[Math.floor(Math.random() * devoraPunchlines.length)]
+        };
       }
 
-      multiBox.classList.remove('hidden');
-      const players = Object.values(STATE.lobbyData.players);
-      const roundKey = `r${STATE.currentRoundIndex}`;
-      const donePlayers = players.filter(p => p.guesses && p.guesses[roundKey] !== undefined);
-      const pendingPlayers = players.filter(p => !p.guesses || p.guesses[roundKey] === undefined);
+      const candidates = [];
 
-      progressBadge.textContent = `${donePlayers.length}/${players.length} prêts`;
-
-      // Générer ou rafraîchir le commentaire d'ambiance
-      if (!currentRoundBanter || pendingPlayers.length === 0) {
-        currentRoundBanter = generateWaitingBanter(players, roundKey);
-      }
-      if (banterBox && banterText && currentRoundBanter) {
-        banterBox.classList.remove('hidden');
-        banterText.textContent = currentRoundBanter;
-      }
-
-      const list = document.getElementById('res-multi-list');
-      list.innerHTML = players.map(p => {
-        const g = p.guesses?.[roundKey];
-        if (!g) {
-          return `<li class="flex items-center justify-between py-1.5 px-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <span class="font-bold text-amber-200"><i class="fa-solid fa-clock fa-spin mr-1.5 text-amber-400"></i>${p.name}</span>
-            <span class="text-amber-300 font-semibold">Réfléchit encore...</span>
-          </li>`;
-        }
-        const dStr = g.distance != null ? (g.distance >= 1000 ? (g.distance / 1000).toFixed(2) + ' km' : g.distance + ' m') : 'Temps écoulé';
-        return `<li class="flex items-center justify-between py-1.5 px-2 rounded-lg bg-slate-950/60 border border-slate-800/80">
-          <span class="font-bold text-white"><i class="fa-solid fa-circle-check mr-1.5 text-emerald-400"></i>${p.name}</span>
-          <span class="text-slate-300">${dStr} • <strong class="text-amber-400">+${g.points || 0} pts</strong></span>
-        </li>`;
-      }).join('');
-
-      // Ajouter les marqueurs des autres joueurs sur la carte résultat dès qu'ils ont validé
-      if (resultMap) {
-        resultMultiMarkers.forEach(m => resultMap.removeLayer(m));
-        resultMultiMarkers = [];
-        players.forEach(p => {
-          if (p.id === STATE.playerId) return;
-          const g = p.guesses?.[roundKey];
-          if (g && g.lat != null && g.lng != null) {
-            const otherIcon = L.divIcon({
-              html: `<div class="px-2 py-0.5 rounded-full bg-indigo-600 border border-white text-[10px] font-extrabold text-white shadow-md whitespace-nowrap">${p.name}</div>`,
-              className: '', iconAnchor: [20, 10]
-            });
-            const marker = L.marker([g.lat, g.lng], { icon: otherIcon }).addTo(resultMap);
-            resultMultiMarkers.push(marker);
-          }
+      if (pendingPlayers && pendingPlayers.length > 0) {
+        const slowpoke = pendingPlayers[Math.floor(Math.random() * pendingPlayers.length)];
+        candidates.push({
+          emoji: '🐢',
+          text: `${slowpoke.name} hésite encore entre la Tour Eiffel et Créteil...`
+        });
+        candidates.push({
+          emoji: '⏳',
+          text: `Quelqu'un réveille ${slowpoke.name} ? Le chrono tourne !`
         });
       }
+
+      const validGuesses = rows.filter(r => r.distanceMeters !== null && r.distanceMeters !== undefined);
+      if (validGuesses.length > 0) {
+        const sortedByDist = [...validGuesses].sort((a, b) => b.distanceMeters - a.distanceMeters);
+        const worst = sortedByDist[0];
+        const best = sortedByDist[sortedByDist.length - 1];
+
+        if (worst && worst.distanceMeters > 2500) {
+          candidates.push({
+            emoji: '🧭',
+            text: `${worst.name} s'est complètement perdu ! (${formatDistance(worst.distanceMeters)} à côté)`
+          });
+        }
+        if (best && best.distanceMeters < 200) {
+          candidates.push({
+            emoji: '🎯',
+            text: `${best.name} habite littéralement dans cet immeuble (${formatDistance(best.distanceMeters)}) !`
+          });
+        }
+      }
+
+      const timedOut = rows.find(r => r.distanceMeters === null || r.distanceMeters === undefined);
+      if (timedOut) {
+        candidates.push({
+          emoji: '💤',
+          text: `${timedOut.name} a oublié de cliquer sur la carte avant la fin du chrono !`
+        });
+      }
+
+      if (candidates.length === 0) {
+        candidates.push({
+          emoji: '👀',
+          text: `On observe les derniers clics de la manche en direct...`
+        });
+      }
+
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    function updateRoundResultMultiplayerUI(room) {
+      const rIdx = STATE.currentRoundIndex;
+      const players = Object.values(room.players || {});
+      const readyPlayers = players.filter(p => p.roundGuesses && p.roundGuesses[rIdx] !== undefined);
+      const pendingPlayers = players.filter(p => !p.roundGuesses || p.roundGuesses[rIdx] === undefined);
+
+      const waitingBanner = document.getElementById('round-waiting-banner');
+      const nextBtn = document.getElementById('btn-next-round');
+      const nextLabel = document.getElementById('btn-next-round-label');
+      const rNum = rIdx + 1;
+      const totalR = STATE.roundsData.length;
 
       if (pendingPlayers.length > 0) {
-        const names = pendingPlayers.map(p => p.name).join(', ');
-        waitBanner.classList.remove('hidden');
-        waitText.innerHTML = `En attente de : <strong class="text-white">${names}</strong>`;
+        waitingBanner.classList.remove('hidden');
+        document.getElementById('round-ready-counter').textContent = `${readyPlayers.length}/${players.length} prêts`;
+        const namesList = pendingPlayers.map(p => escapeHtml(p.name)).join(', ');
+        document.getElementById('round-waiting-names').innerHTML = `En attente de : <strong class="text-white">${namesList}</strong>`;
         nextBtn.disabled = true;
-        nextBtn.className = 'flex-1 py-3.5 px-6 rounded-xl bg-slate-800 text-slate-400 font-extrabold text-sm cursor-not-allowed transition';
-        nextBtn.innerHTML = `<i class="fa-solid fa-hourglass-half fa-spin mr-1.5"></i>Attente (${donePlayers.length}/${players.length})`;
+        nextLabel.textContent = `En attente de ${pendingPlayers.length} joueur${pendingPlayers.length > 1 ? 's' : ''}...`;
       } else {
-        waitBanner.classList.add('hidden');
+        waitingBanner.classList.add('hidden');
         nextBtn.disabled = false;
-        nextBtn.className = 'flex-1 py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm shadow-lg transition';
-        nextBtn.innerHTML = isLastRound
-          ? 'Voir le podium final <i class="fa-solid fa-trophy ml-1.5"></i>'
-          : 'Manche suivante <i class="fa-solid fa-arrow-right ml-1.5"></i>';
+        nextLabel.textContent = rNum < totalR ? 'Manche suivante' : 'Voir le podium final';
       }
+
+      const myEntry = STATE.roundHistory[rIdx];
+      const otherGuesses = readyPlayers
+        .filter(p => p.id !== STATE.playerId && p.roundGuesses[rIdx]?.guessCoords)
+        .map(p => ({
+          name: p.name,
+          coords: p.roundGuesses[rIdx].guessCoords
+        }));
+
+      if (myEntry) {
+        renderResultMap(myEntry, otherGuesses);
+      }
+
+      const rows = players.map(p => {
+        const g = p.roundGuesses ? p.roundGuesses[rIdx] : null;
+        return {
+          name: p.name,
+          points: g ? g.points : 0,
+          distanceMeters: g ? g.distanceMeters : null,
+          totalScore: p.score || 0,
+          isMe: p.id === STATE.playerId,
+          isPending: !g
+        };
+      }).sort((a, b) => b.totalScore - a.totalScore);
+
+      if (pendingPlayers.length > 0) {
+        const banter = generateWaitingBanter(rows, pendingPlayers);
+        document.getElementById('round-banter-emoji').textContent = banter.emoji;
+        document.getElementById('round-banter-text').textContent = banter.text;
+      }
+
+      renderRoundLeaderboard(rows);
     }
 
-    function showRoundResult(entry) {
-      currentRoundBanter = '';
-      showScreen('screen-round-result');
-      document.getElementById('res-round-num').textContent = entry.round;
-      document.getElementById('res-round-total').textContent = STATE.totalRounds;
-      document.getElementById('res-distance').textContent = entry.distance !== null
-        ? (entry.distance >= 1000 ? (entry.distance / 1000).toFixed(2) + ' km' : entry.distance + ' m')
-        : 'Temps écoulé';
-      document.getElementById('res-time').textContent = `${entry.timeSec.toFixed(1).replace('.', ',')} s`;
-      document.getElementById('res-points').textContent = `+${entry.points.toLocaleString('fr-FR')}`;
-      document.getElementById('res-mapillary-link').href = `https://www.mapillary.com/app/?pKey=${entry.target.id}&focus=photo`;
-
-      // Carte résultat
-      if (resultMap) { resultMap.remove(); resultMap = null; }
-      resultMap = L.map('result-map').setView([entry.target.lat, entry.target.lng], 14);
-      createOsmTileLayer().addTo(resultMap);
-
-      const targetIcon = L.divIcon({
-        html: '<div class="w-6 h-6 rounded-full bg-emerald-500 border-2 border-white shadow-lg flex items-center justify-center text-white text-xs"><i class="fa-solid fa-flag-checkered"></i></div>',
-        className: '', iconSize: [24, 24], iconAnchor: [12, 12]
-      });
-      L.marker([entry.target.lat, entry.target.lng], { icon: targetIcon }).addTo(resultMap).bindPopup('Position exacte');
-
-      const bounds = [[entry.target.lat, entry.target.lng]];
-      if (entry.guess) {
-        L.marker([entry.guess.lat, entry.guess.lng]).addTo(resultMap).bindPopup('Votre repère');
-        L.polyline([[entry.target.lat, entry.target.lng], [entry.guess.lat, entry.guess.lng]], { color: '#f59e0b', weight: 3, dashArray: '6,6' }).addTo(resultMap);
-        bounds.push([entry.guess.lat, entry.guess.lng]);
+    function renderResultMap(entry, otherGuesses = []) {
+      if (STATE.resultMap) {
+        STATE.resultMap.remove();
+        STATE.resultMap = null;
       }
 
-      updateRoundResultMultiplayerUI();
+      STATE.resultMap = L.map('result-map', {
+        zoomControl: true,
+        attributionControl: false
+      });
 
-      setTimeout(() => {
-        resultMap.invalidateSize();
-        if (bounds.length > 1) resultMap.fitBounds(bounds, { padding: [45, 45] });
-      }, 150);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+      }).addTo(STATE.resultMap);
+
+      const targetLL = [entry.targetCoords.lat, entry.targetCoords.lng];
+      const targetIcon = L.divIcon({
+        className: '',
+        html: `<div class="custom-pin w-8 h-8 bg-emerald-500 text-sm">🏁</div>`,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      L.marker(targetLL, { icon: targetIcon }).addTo(STATE.resultMap);
+
+      const boundsPoints = [targetLL];
+
+      if (entry.guessCoords) {
+        const guessLL = [entry.guessCoords.lat, entry.guessCoords.lng];
+        const guessIcon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-7 h-7 bg-indigo-600">📍</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+        L.marker(guessLL, { icon: guessIcon }).addTo(STATE.resultMap);
+        L.polyline([guessLL, targetLL], {
+          color: '#818cf8',
+          weight: 3,
+          dashArray: '6, 8'
+        }).addTo(STATE.resultMap);
+        boundsPoints.push(guessLL);
+      }
+
+      otherGuesses.forEach(og => {
+        const ogLL = [og.coords.lat, og.coords.lng];
+        const initial = escapeHtml(og.name.slice(0, 2).toUpperCase());
+        const ogIcon = L.divIcon({
+          className: '',
+          html: `<div class="custom-pin w-7 h-7 bg-amber-500 text-[10px]">${initial}</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        });
+        L.marker(ogLL, { icon: ogIcon }).addTo(STATE.resultMap);
+        L.polyline([ogLL, targetLL], {
+          color: '#f59e0b',
+          weight: 2,
+          dashArray: '4, 6'
+        }).addTo(STATE.resultMap);
+        boundsPoints.push(ogLL);
+      });
+
+      if (boundsPoints.length > 1) {
+        STATE.resultMap.fitBounds(L.latLngBounds(boundsPoints), { padding: [45, 45], maxZoom: 15 });
+      } else {
+        STATE.resultMap.setView(targetLL, 14);
+      }
+
+      setTimeout(() => STATE.resultMap && STATE.resultMap.invalidateSize(), 150);
+    }
+
+    function renderRoundLeaderboard(rows) {
+      const container = document.getElementById('round-leaderboard-list');
+      container.innerHTML = rows.map((r, idx) => `
+        <div class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl ${r.isMe ? 'bg-indigo-500/20 border border-indigo-500/40' : 'bg-slate-900/75 border border-slate-800'}">
+          <div class="flex items-center gap-2.5">
+            <span class="font-mono text-xs font-black text-slate-400 w-5">#${idx + 1}</span>
+            <div>
+              <span class="text-sm font-bold text-white block">${escapeHtml(r.name)}</span>
+              <span class="text-[11px] ${r.isPending ? 'text-amber-300 font-semibold' : 'text-slate-400'}">
+                ${r.isPending ? '⏳ Place son repère...' : `${formatDistance(r.distanceMeters)} (+${r.points})`}
+              </span>
+            </div>
+          </div>
+          <span class="font-mono text-sm font-black text-indigo-300">${r.totalScore.toLocaleString('fr-FR')}</span>
+        </div>
+      `).join('');
     }
 
     function proceedToNextRound() {
-      if (STATE.currentRoundIndex + 1 < STATE.totalRounds) {
-        startRound(STATE.currentRoundIndex + 1);
+      const nextIdx = STATE.currentRoundIndex + 1;
+      if (nextIdx < STATE.roundsData.length) {
+        startRound(nextIdx);
       } else {
-        showFinalSummary();
+        showFinalPodium();
       }
     }
 
-    /* ==================== BILAN FINAL & MENTIONS HONORABLES ==================== */
-    function showFinalSummary() {
+    // =========================================================================
+    // 10. PODIUM FINAL, MENTIONS HONORABLES & QR CODE DÉFI
+    // =========================================================================
+    function showFinalPodium() {
       showScreen('screen-final');
-      const maxPts = STATE.totalRounds * 5000;
-      document.getElementById('final-total-score').innerHTML = `${STATE.totalScore.toLocaleString('fr-FR')} <span class="text-lg font-bold text-slate-400">/ ${maxPts.toLocaleString('fr-FR')} pts</span>`;
 
-      const ratio = STATE.totalScore / maxPts;
-      const rank = ratio >= 0.85 ? 'Inspecteur de la Voirie Parisienne'
-        : ratio >= 0.65 ? 'Chauffeur de Taxi Parisien'
-        : ratio >= 0.40 ? 'Habitué du Métro & RER'
-        : 'Touriste sur les Champs-Élysées';
-      document.getElementById('final-rank-title').textContent = rank;
+      let standings = [];
+      if (STATE.isMultiplayer && STATE.roomData && STATE.roomData.players) {
+        standings = Object.values(STATE.roomData.players).map(p => {
+          const guesses = Object.values(p.roundGuesses || {});
+          const validDists = guesses.map(g => g.distanceMeters).filter(d => d !== null && d !== undefined);
+          const minDist = validDists.length ? Math.min(...validDists) : null;
+          const maxDist = validDists.length ? Math.max(...validDists) : null;
+          const avgTime = guesses.length ? Math.round(guesses.reduce((s, g) => s + (g.elapsedSec || 30), 0) / guesses.length) : 30;
+          return {
+            name: p.name,
+            score: p.score || 0,
+            minDist,
+            maxDist,
+            avgTime,
+            isMe: p.id === STATE.playerId
+          };
+        }).sort((a, b) => b.score - a.score);
+      } else {
+        const validDists = STATE.roundHistory.map(h => h.distanceMeters).filter(d => d !== null);
+        const minDist = validDists.length ? Math.min(...validDists) : null;
+        const maxDist = validDists.length ? Math.max(...validDists) : null;
+        const avgTime = STATE.roundHistory.length
+          ? Math.round(STATE.roundHistory.reduce((s, h) => s + h.elapsedSec, 0) / STATE.roundHistory.length)
+          : 30;
+        standings = [{
+          name: STATE.username,
+          score: STATE.totalScore,
+          minDist,
+          maxDist,
+          avgTime,
+          isMe: true
+        }];
+      }
 
-      const validRounds = STATE.roundHistory.filter(r => r.distance !== null);
-      const fastest = [...STATE.roundHistory].sort((a, b) => a.timeSec - b.timeSec)[0];
-      const closest = validRounds.length ? [...validRounds].sort((a, b) => a.distance - b.distance)[0] : null;
-      const worst = validRounds.length ? [...validRounds].sort((a, b) => b.distance - a.distance)[0] : STATE.roundHistory[0];
-
-      const honorsHtml = `
-        <div class="bg-slate-950/90 border border-blue-500/30 rounded-xl p-3">
-          <div class="text-[10px] font-bold uppercase text-blue-400"><i class="fa-solid fa-bolt mr-1"></i>Flash du Périph</div>
-          <div class="text-sm font-extrabold text-white mt-0.5">${fastest ? fastest.timeSec.toFixed(1) + ' s' : '-'}</div>
-          <div class="text-[11px] text-slate-400">Manche #${fastest?.round || 1} (Plus rapide)</div>
+      const medals = ['🥇', '🥈', '🥉'];
+      const podiumEl = document.getElementById('final-podium-cards');
+      podiumEl.innerHTML = standings.slice(0, 5).map((p, idx) => `
+        <div class="glass rounded-2xl p-4 flex items-center justify-between ${idx === 0 ? 'border-amber-400/50 bg-amber-500/10' : ''}">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">${medals[idx] || `#${idx + 1}`}</span>
+            <div>
+              <span class="font-extrabold text-base text-white block">${escapeHtml(p.name)}</span>
+              <span class="text-xs text-slate-400">Meilleur tir : ${formatDistance(p.minDist)}</span>
+            </div>
+          </div>
+          <span class="font-mono text-lg font-black text-indigo-300">${p.score.toLocaleString('fr-FR')} pts</span>
         </div>
-        <div class="bg-slate-950/90 border border-emerald-500/30 rounded-xl p-3">
-          <div class="text-[10px] font-bold uppercase text-emerald-400"><i class="fa-solid fa-crosshairs mr-1"></i>Sniper Haussmann</div>
-          <div class="text-sm font-extrabold text-white mt-0.5">${closest ? closest.distance + ' m' : 'Aucun tir'}</div>
-          <div class="text-[11px] text-slate-400">${closest ? 'Manche #' + closest.round : 'Hors cible'}</div>
-        </div>
-        <div class="bg-slate-950/90 border border-rose-500/30 rounded-xl p-3">
-          <div class="text-[10px] font-bold uppercase text-rose-400"><i class="fa-solid fa-compass mr-1"></i>Touriste Égaré</div>
-          <div class="text-sm font-extrabold text-white mt-0.5">${worst?.distance != null ? (worst.distance >= 1000 ? (worst.distance / 1000).toFixed(1) + ' km' : worst.distance + ' m') : 'Temps expiré'}</div>
-          <div class="text-[11px] text-slate-400">Manche #${worst?.round || 1} (Plus à la ramasse)</div>
-        </div>
-      `;
-      document.getElementById('final-honors-grid').innerHTML = honorsHtml;
-
-      document.getElementById('final-rounds-breakdown').innerHTML = STATE.roundHistory.map(r => `
-        <li class="flex items-center justify-between bg-slate-950/70 px-3 py-2 rounded-xl border border-slate-800/80">
-          <span>Manche <strong>#${r.round}</strong> • ${r.timeSec.toFixed(1)}s</span>
-          <span>${r.distance !== null ? r.distance + ' m' : 'Expiré'} — <strong class="text-amber-400">${r.points} pts</strong></span>
-        </li>
       `).join('');
 
-      renderFinalMultiplayerLeaderboard();
+      const fastest = [...standings].sort((a, b) => a.avgTime - b.avgTime)[0];
+      const sniper = [...standings].filter(s => s.minDist !== null).sort((a, b) => a.minDist - b.minDist)[0];
+      const lost = [...standings].filter(s => s.maxDist !== null).sort((a, b) => b.maxDist - a.maxDist)[0];
+
+      const mentionsEl = document.getElementById('final-honorable-mentions');
+      mentionsEl.innerHTML = `
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3">
+          <span class="text-base">⚡</span>
+          <span class="text-xs font-extrabold text-indigo-300 block mt-1">Flash du Périph</span>
+          <span class="text-xs font-bold text-white block">${escapeHtml(fastest?.name || '-')}</span>
+          <span class="text-[10px] text-slate-400">${fastest?.avgTime || 30}s / manche en moy.</span>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3">
+          <span class="text-base">🎯</span>
+          <span class="text-xs font-extrabold text-emerald-300 block mt-1">Sniper Haussmannien</span>
+          <span class="text-xs font-bold text-white block">${escapeHtml(sniper?.name || '-')}</span>
+          <span class="text-[10px] text-slate-400">À ${formatDistance(sniper?.minDist)} du point</span>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-3">
+          <span class="text-base">🧳</span>
+          <span class="text-xs font-extrabold text-rose-300 block mt-1">Touriste Égaré</span>
+          <span class="text-xs font-bold text-white block">${escapeHtml(lost?.name || '-')}</span>
+          <span class="text-[10px] text-slate-400">Écart max : ${formatDistance(lost?.maxDist)}</span>
+        </div>
+      `;
     }
 
-    function renderFinalMultiplayerLeaderboard() {
-      const multiSec = document.getElementById('final-multi-section');
-      if (STATE.mode === 'lobby' && STATE.lobbyData?.players) {
-        multiSec.classList.remove('hidden');
-        const sorted = Object.values(STATE.lobbyData.players).sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
-        document.getElementById('final-multi-leaderboard').innerHTML = sorted.map((p, idx) => `
-          <li class="flex items-center justify-between bg-slate-950 px-3.5 py-2.5 rounded-xl border border-slate-800">
-            <span class="font-extrabold text-sm">${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '#' + (idx + 1)} ${p.name}</span>
-            <span class="font-black text-amber-400">${(p.totalScore || 0).toLocaleString('fr-FR')} pts</span>
-          </li>
-        `).join('');
-      } else {
-        multiSec.classList.add('hidden');
-      }
+    function encodeChallengeSeed(zoneKey, duration, rounds) {
+      const ids = rounds.map(r => r.imageId).join(',');
+      return `${zoneKey}@${duration}:${ids}`;
     }
 
-    function openChallengeQrModal() {
-      const seed = `${STATE.zone}@${STATE.timerSeconds}:${STATE.locations.map(l => l.id).join(',')}`;
-      const box = document.getElementById('challenge-qrcode-box');
+    function openChallengeShareModal() {
+      const seed = encodeChallengeSeed(STATE.selectedZone, STATE.roundDuration, STATE.roundsData);
+      const base = window.location.href.split('?')[0].split('#')[0];
+      const challengeUrl = `${base}?seed=${encodeURIComponent(seed)}`;
+
+      const box = document.getElementById('challenge-qrcode-container');
       box.innerHTML = '';
-      new QRCode(box, { text: seed, width: 180, height: 180 });
-      const manualInput = document.getElementById('challenge-manual-code-input');
-      if (manualInput) manualInput.value = seed;
+      new QRCode(box, {
+        text: challengeUrl,
+        width: 170,
+        height: 170,
+        colorDark: '#090d16',
+        colorLight: '#ffffff'
+      });
+
+      const manualInput = document.getElementById('challenge-manual-code-output');
+      if (manualInput) {
+        manualInput.value = seed;
+      }
+
       openModal('modal-challenge-qr');
     }
 
-    function copyChallengeManualCode() {
-      const val = document.getElementById('challenge-manual-code-input')?.value;
-      if (val) copyTextSafe(val, 'Code défi manuel copié !');
+    function copyChallengeManualInput() {
+      const manualInput = document.getElementById('challenge-manual-code-output');
+      if (!manualInput || !manualInput.value) return;
+      navigator.clipboard?.writeText(manualInput.value);
+      showToast('Code défi manuel copié !', '📋');
     }
 
     function shareFinalScoreText() {
-      const maxPts = STATE.totalRounds * 5000;
-      const text = `🗼 PinPointParis — ${STATE.playerName}\n🏆 Score : ${STATE.totalScore.toLocaleString('fr-FR')} / ${maxPts.toLocaleString('fr-FR')} pts\nDéfi : ${STATE.zone}@${STATE.timerSeconds}:${STATE.locations.map(l => l.id).join(',')}`;
-      copyTextSafe(text, 'Score & code défi copiés !');
+      const text = `🗼 PinPointParis (${ZONES[STATE.selectedZone].label})\n🏆 Mon score : ${STATE.totalScore.toLocaleString('fr-FR')} / 25 000 pts !\nQui fait mieux ?`;
+      navigator.clipboard?.writeText(text);
+      showToast('Résumé de score copié dans le presse-papiers !', '📋');
     }
 
-    function replaySameSettings() {
-      if (STATE.mode === 'lobby') showScreen('screen-lobby');
-      else launchLocationSearchAndPlay();
+    function returnToHome() {
+      leaveLobby();
     }
 
-    /* ==================== DÉMARRAGE ==================== */
-    window.addEventListener('DOMContentLoaded', () => {
-      if (STATE.playerName) document.getElementById('input-player-name').value = STATE.playerName;
-      initFirebaseFromStorage();
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[m]));
+    }
 
-      const hash = window.location.hash;
-      if (hash.includes('room=') || hash.includes('seed=')) {
-        handleScannedOrEnteredCode(decodeURIComponent(hash.slice(1)));
+    // =========================================================================
+    // 11. BOOTSTRAP AU CHARGEMENT DE LA PAGE
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      const savedName = localStorage.getItem('parisguessr_username');
+      if (savedName) {
+        document.getElementById('input-username').value = savedName;
+      } else {
+        randomizePseudo();
+      }
+
+      await initFirebaseFromStorage();
+
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room');
+      const seedParam = params.get('seed');
+
+      if (roomParam) {
+        await joinLobbyByCode(roomParam.toUpperCase());
+      } else if (seedParam) {
+        await startChallengeFromSeed(seedParam);
       }
     });
   </script>
