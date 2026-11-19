@@ -1041,7 +1041,6 @@
           renderLobbyUI(data);
         }
 
-        // Vérifie si tous les joueurs ont placé leur point sur la manche en cours
         if (
           !document.getElementById('screen-round-waiting').classList.contains('hidden') ||
           !document.getElementById('screen-round-result').classList.contains('hidden')
@@ -1224,7 +1223,7 @@
     }
 
     // =========================================================================
-    // 6. MAPILLARY API v4 : RÉCUPÉRATION DE 5 PANORAMAS
+    // 6. MAPILLARY API v4 : RÉCUPÉRATION SÉCURISÉE (ANTI-400 BAD REQUEST)
     // =========================================================================
     function getRandomCoordInZone(zoneKey) {
       const [minLng, minLat, maxLng, maxLat] = ZONES[zoneKey].bbox;
@@ -1233,16 +1232,28 @@
       return { lat, lng };
     }
 
-    async function fetchMapillary360Near(lat, lng, delta = 0.012) {
+    async function fetchMapillary360Near(lat, lng, delta = 0.008) {
       const token = STATE.mapillaryToken;
-      if (!token) return null;
+      if (!token || isNaN(lat) || isNaN(lng)) return null;
 
-      const bbox = `${(lng - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lng + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
-      const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,is_pano&bbox=${bbox}&limit=15`;
+      // Mapillary v4 rejette en 400 Bad Request les bbox trop larges
+      const safeDelta = Math.min(delta, 0.009);
+      const bbox = [
+        (lng - safeDelta).toFixed(5),
+        (lat - safeDelta).toFixed(5),
+        (lng + safeDelta).toFixed(5),
+        (lat + safeDelta).toFixed(5)
+      ].join(',');
+
+      const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,geometry,thumb_2048_url,is_pano&bbox=${bbox}&limit=15`;
 
       try {
         const res = await fetch(url);
-        if (!res.ok) return null;
+        if (!res.ok) {
+          const errBody = await res.text();
+          console.error('Mapillary erreur HTTP', res.status, errBody);
+          return null;
+        }
         const json = await res.json();
         if (!json.data || json.data.length === 0) return null;
 
@@ -1251,7 +1262,7 @@
         if (pool.length === 0) return null;
 
         const chosen = pool[Math.floor(Math.random() * pool.length)];
-        const coords = chosen.computed_geometry?.coordinates || chosen.geometry?.coordinates || [lng, lat];
+        const coords = chosen.geometry?.coordinates || [lng, lat];
 
         return {
           imageId: chosen.id,
@@ -1270,12 +1281,12 @@
     async function fetchMapillaryImageById(imageId) {
       const token = STATE.mapillaryToken;
       if (!token) return null;
-      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,is_pano`;
+      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${token}&fields=id,geometry,thumb_2048_url,is_pano`;
       try {
         const res = await fetch(url);
         if (!res.ok) return null;
         const data = await res.json();
-        const coords = data.computed_geometry?.coordinates || data.geometry?.coordinates;
+        const coords = data.geometry?.coordinates;
         if (!coords) return null;
         return {
           imageId: data.id,
@@ -1305,7 +1316,7 @@
         let found = null;
         for (let attempt = 0; attempt < 3; attempt++) {
           const rnd = getRandomCoordInZone(zoneKey);
-          const candidate = await fetchMapillary360Near(rnd.lat, rnd.lng, 0.015);
+          const candidate = await fetchMapillary360Near(rnd.lat, rnd.lng, 0.008);
           if (candidate && !usedIds.has(candidate.imageId)) {
             found = candidate;
             break;
@@ -1314,7 +1325,7 @@
 
         if (!found) {
           const fb = fallbacks[i % fallbacks.length];
-          const nearFb = await fetchMapillary360Near(fb.lat, fb.lng, 0.012);
+          const nearFb = await fetchMapillary360Near(fb.lat, fb.lng, 0.008);
           if (nearFb && !usedIds.has(nearFb.imageId)) {
             nearFb.label = fb.name;
             found = nearFb;
@@ -1609,7 +1620,7 @@
         placeGuessPin(e.latlng);
       });
 
-      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 120);
+      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 150);
     }
 
     function placeGuessPin(latlng) {
@@ -1747,8 +1758,6 @@
           console.error('Erreur sync score:', err);
         }
 
-        // En multijoueur : si tout le monde a déjà fini, on affiche directement le tableau des scores,
-        // sinon on affiche l'écran d'attente sans révéler les résultats.
         if (STATE.roomData) {
           const players = Object.values(STATE.roomData.players || {});
           const rIdx = STATE.currentRoundIndex;
@@ -1762,7 +1771,6 @@
           showWaitingScreen(null);
         }
       } else {
-        // En mode solo : affichage direct du tableau des scores pendant 5 secondes
         revealScoreboardFor5Seconds(null);
       }
     }
@@ -1848,7 +1856,6 @@
           showWaitingScreen(room);
         }
       } else if (STATE.hasSubmittedCurrentRound) {
-        // Tout le monde a placé son point -> on révèle le tableau des scores pendant 5 secondes !
         revealScoreboardFor5Seconds(room);
       }
     }
@@ -1905,7 +1912,6 @@
         ]);
       }
 
-      // Décompte automatique de 5 secondes avant de passer au tour suivant
       startScoreboard5sCountdown(rNum < totalR);
     }
 
