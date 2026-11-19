@@ -1599,6 +1599,7 @@
 
     function initGuessMinimap() {
       const zone = ZONES[STATE.selectedZone];
+      const mapEl = document.getElementById('guess-map');
       if (STATE.guessMap) {
         STATE.guessMap.remove();
         STATE.guessMap = null;
@@ -1610,8 +1611,9 @@
         attributionControl: false
       }).setView(zone.center, zone.zoom);
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
       }).addTo(STATE.guessMap);
 
       STATE.guessMap.on('click', (e) => {
@@ -1619,7 +1621,12 @@
         placeGuessPin(e.latlng);
       });
 
-      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 150);
+      const ro = new ResizeObserver(() => {
+        if (STATE.guessMap) STATE.guessMap.invalidateSize();
+      });
+      ro.observe(mapEl);
+
+      setTimeout(() => STATE.guessMap && STATE.guessMap.invalidateSize(), 200);
     }
 
     function placeGuessPin(latlng) {
@@ -1945,6 +1952,7 @@
     }
 
     function renderResultMap(entry, otherGuesses = []) {
+      const mapEl = document.getElementById('result-map');
       if (STATE.resultMap) {
         STATE.resultMap.remove();
         STATE.resultMap = null;
@@ -1955,8 +1963,9 @@
         attributionControl: false
       });
 
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
       }).addTo(STATE.resultMap);
 
       const targetLL = [entry.targetCoords.lat, entry.targetCoords.lng];
@@ -2011,7 +2020,12 @@
         STATE.resultMap.setView(targetLL, 14);
       }
 
-      setTimeout(() => STATE.resultMap && STATE.resultMap.invalidateSize(), 150);
+      const ro = new ResizeObserver(() => {
+        if (STATE.resultMap) STATE.resultMap.invalidateSize();
+      });
+      ro.observe(mapEl);
+
+      setTimeout(() => STATE.resultMap && STATE.resultMap.invalidateSize(), 200);
     }
 
     function renderRoundLeaderboard(rows) {
