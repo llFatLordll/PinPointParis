@@ -272,7 +272,7 @@
 
           <button onclick="startSoloQuickGame()" class="w-full py-3 px-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-700/70 font-semibold text-xs text-slate-300 flex items-center justify-center gap-2 transition">
             <span>⚡</span>
-            <span>Partie Solo Express (5 manches • 30s • 100% 360°)</span>
+            <span>Partie Solo Express (5 manches • 30s)</span>
           </button>
         </div>
       </div>
@@ -280,7 +280,7 @@
 
     <!-- Footer -->
     <footer class="text-center text-[11px] text-slate-500 pb-2">
-      5 manches • 30 sec / manche • Panoramas 360° vérifiés (Mapillary)
+      5 manches • 30 sec / manche • Tableau des scores synchronisé entre chaque tour
     </footer>
   </section>
 
@@ -395,8 +395,8 @@
         🛰️
       </div>
       <div>
-        <h2 class="text-lg font-extrabold text-white">Recherche de vrais panoramas 360°...</h2>
-        <p id="loading-subtitle" class="text-xs text-slate-400 mt-1">Filtrage strict des vues sphériques Mapillary</p>
+        <h2 class="text-lg font-extrabold text-white">Génération de la partie...</h2>
+        <p id="loading-subtitle" class="text-xs text-slate-400 mt-1">Chargement des vues Mapillary</p>
       </div>
       <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
         <div id="loading-progress-bar" class="bg-gradient-to-r from-indigo-500 to-pink-500 h-full w-1/5 transition-all duration-300"></div>
@@ -467,64 +467,86 @@
   </section>
 
   <!-- ========================================================= -->
-  <!-- ÉCRAN 5 : RÉSULTAT DE MANCHE                              -->
+  <!-- ÉCRAN 4B : ATTENTE DES AUTRES JOUEURS (SANS RÉSULTAT)     -->
+  <!-- ========================================================= -->
+  <section id="screen-round-waiting" class="hidden min-h-screen w-full flex flex-col items-center justify-center p-4 md:p-8 max-w-lg mx-auto relative z-20">
+    <div class="glass rounded-3xl p-6 md:p-7 w-full space-y-5 shadow-2xl border border-indigo-500/30">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-2xl">
+          🔒
+        </div>
+        <span id="waiting-round-badge" class="inline-block text-[11px] font-extrabold uppercase tracking-widest text-indigo-300">
+          Manche 1 / 5 • Repère verrouillé
+        </span>
+        <h2 class="text-xl font-black text-white">En attente des autres joueurs</h2>
+        <p class="text-xs text-slate-400">
+          Le tableau des scores s'affichera automatiquement dès que tout le monde aura placé son point.
+        </p>
+      </div>
+
+      <!-- Compteur & Liste nominative des retardataires -->
+      <div class="bg-slate-950/75 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">N'ont pas encore placé leur point :</span>
+          <span id="waiting-screen-counter" class="font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            1/2 prêts
+          </span>
+        </div>
+        <div id="waiting-pending-players-list" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Commentaires & vannes en direct pendant l'attente -->
+      <div class="bg-indigo-950/50 border border-indigo-500/35 rounded-2xl p-3.5 flex items-start gap-3">
+        <span id="waiting-banter-emoji" class="text-xl leading-none mt-0.5">💬</span>
+        <p id="waiting-banter-text" class="text-xs font-semibold text-indigo-100 leading-relaxed"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================= -->
+  <!-- ÉCRAN 5 : TABLEAU DES SCORES DE LA MANCHE (5 SECONDES)    -->
   <!-- ========================================================= -->
   <section id="screen-round-result" class="hidden min-h-screen w-full flex flex-col justify-between p-4 md:p-6 max-w-3xl mx-auto relative z-20">
-    <header class="flex items-center justify-between">
+    <header class="flex items-center justify-between gap-2">
       <div>
-        <span id="result-round-badge" class="text-xs font-extrabold uppercase tracking-wider text-indigo-400">Résultat Manche 1/5</span>
-        <h2 id="result-location-name" class="text-lg md:text-xl font-black text-white truncate max-w-[260px] md:max-w-md">Paris</h2>
+        <span id="result-round-badge" class="text-xs font-extrabold uppercase tracking-wider text-indigo-400">Tableau des scores • Manche 1/5</span>
+        <h2 id="result-location-name" class="text-lg md:text-xl font-black text-white truncate max-w-[230px] md:max-w-md">Paris</h2>
       </div>
       <div class="text-right">
-        <span class="text-[11px] text-slate-400 block">Points gagnés</span>
+        <span class="text-[11px] text-slate-400 block">Ton gain</span>
         <span id="result-points-earned" class="text-xl font-black text-emerald-400">+0 pts</span>
       </div>
     </header>
 
-    <!-- Carte comparative -->
-    <div class="my-3 rounded-3xl overflow-hidden border border-slate-700/80 shadow-2xl h-[34vh] md:h-[40vh] relative">
+    <!-- Carte comparative avec les repères de tous les joueurs -->
+    <div class="my-3 rounded-3xl overflow-hidden border border-slate-700/80 shadow-2xl h-[32vh] md:h-[38vh] relative">
       <div id="result-map" class="w-full h-full"></div>
       <div class="absolute bottom-3 left-3 z-[500] glass px-3 py-1.5 rounded-xl text-xs font-bold text-white flex items-center gap-2">
-        <span>📏 Distance :</span>
+        <span>📏 Ta distance :</span>
         <span id="result-distance-text" class="text-indigo-300 font-mono">-- m</span>
       </div>
     </div>
 
-    <!-- Bannière d'attente des autres joueurs en Multijoueur -->
-    <div id="round-waiting-banner" class="hidden glass rounded-2xl p-3.5 border border-amber-500/40 bg-amber-500/10 space-y-2.5">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping"></span>
-          <span class="text-xs font-extrabold text-amber-200">Attente des autres joueurs...</span>
-        </div>
-        <span id="round-ready-counter" class="text-[11px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-900/80 text-amber-300 border border-amber-500/30">
-          1/2 prêts
-        </span>
-      </div>
-      <p id="round-waiting-names" class="text-xs text-slate-200 font-medium">
-        En attente de : ...
-      </p>
-      <!-- Commentaire dynamique & vannes entre les manches -->
-      <div id="round-banter-box" class="bg-slate-950/75 border border-indigo-500/30 rounded-xl px-3 py-2 flex items-start gap-2">
-        <span id="round-banter-emoji" class="text-base leading-none mt-0.5">💬</span>
-        <p id="round-banter-text" class="text-xs font-semibold text-indigo-200 leading-snug"></p>
-      </div>
-    </div>
-
-    <!-- Classement de la manche -->
+    <!-- Tableau des scores de la manche -->
     <div class="glass rounded-3xl p-4 space-y-2.5">
       <div class="flex items-center justify-between">
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Classement de la manche</span>
-        <span class="text-[11px] text-slate-400">Total cumulé</span>
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Tableau des scores du tour</span>
+        <span class="text-[11px] text-slate-400">Score manche • Total</span>
       </div>
-      <div id="round-leaderboard-list" class="space-y-2 max-h-40 overflow-y-auto"></div>
+      <div id="round-leaderboard-list" class="space-y-2 max-h-44 overflow-y-auto"></div>
     </div>
 
+    <!-- Barre de transition automatique de 5 secondes -->
     <footer class="pt-3 pb-2">
-      <button id="btn-next-round" onclick="proceedToNextRound()" class="w-full py-4 px-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed font-extrabold text-base text-white shadow-xl flex items-center justify-center gap-2 transition">
-        <span id="btn-next-round-label">Manche suivante</span>
-        <span>→</span>
-      </button>
+      <div class="glass rounded-2xl p-3.5 border border-indigo-500/40 bg-indigo-500/10 space-y-2">
+        <div class="flex items-center justify-between text-xs font-extrabold">
+          <span id="scoreboard-countdown-label" class="text-indigo-200">Prochain tour dans...</span>
+          <span id="scoreboard-countdown-seconds" class="font-mono text-base font-black text-white">5s</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+          <div id="scoreboard-countdown-bar" class="bg-gradient-to-r from-indigo-500 to-emerald-400 h-full w-full transition-all duration-1000 linear"></div>
+        </div>
+      </div>
     </footer>
   </section>
 
@@ -680,7 +702,6 @@
       }
     };
 
-    // Coordonnées de secours exclusivement sur des axes couverts à 360° dans Mapillary
     const FALLBACK_COORDS = {
       paris: [
         { lat: 48.8584, lng: 2.2945, name: "Champ-de-Mars / Tour Eiffel" },
@@ -733,6 +754,8 @@
       roundHistory: [],
 
       timerInterval: null,
+      scoreboardTimerInterval: null,
+      scoreboardShownForRound: -1,
       timeLeft: 30,
       roundStartTime: 0,
       hasSubmittedCurrentRound: false,
@@ -767,7 +790,7 @@
     // 2. UTILITAIRES UI & NAVIGATION
     // =========================================================================
     function showScreen(screenId) {
-      ['screen-home', 'screen-lobby', 'screen-loading', 'screen-game', 'screen-round-result', 'screen-final']
+      ['screen-home', 'screen-lobby', 'screen-loading', 'screen-game', 'screen-round-waiting', 'screen-round-result', 'screen-final']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) el.classList.add('hidden');
@@ -1018,8 +1041,12 @@
           renderLobbyUI(data);
         }
 
-        if (!document.getElementById('screen-round-result').classList.contains('hidden')) {
-          updateRoundResultMultiplayerUI(data);
+        // Vérifie si tous les joueurs ont placé leur point sur la manche en cours
+        if (
+          !document.getElementById('screen-round-waiting').classList.contains('hidden') ||
+          !document.getElementById('screen-round-result').classList.contains('hidden')
+        ) {
+          evaluateMultiplayerRoundProgression(data);
         }
 
         if (data.status === 'playing' && data.rounds && data.rounds.length > 0 && STATE.roundsData.length === 0) {
@@ -1113,7 +1140,7 @@
     }
 
     async function copyManualSeedCode() {
-      showToast('Génération des 5 panoramas 360°...', '🛰️');
+      showToast('Génération des 5 panoramas...', '🛰️');
       if (!STATE.roundsData || STATE.roundsData.length < 5) {
         STATE.roundsData = await fetchFiveMapillaryPanoramas(STATE.selectedZone);
       }
@@ -1145,6 +1172,8 @@
     }
 
     function leaveLobby() {
+      clearInterval(STATE.timerInterval);
+      clearInterval(STATE.scoreboardTimerInterval);
       if (STATE.unsubscribeRoom) {
         STATE.unsubscribeRoom();
         STATE.unsubscribeRoom = null;
@@ -1195,7 +1224,7 @@
     }
 
     // =========================================================================
-    // 6. MAPILLARY API v4 : RÉCUPÉRATION STRICTE DE 5 VRAIS PANORAMAS 360°
+    // 6. MAPILLARY API v4 : RÉCUPÉRATION DE 5 PANORAMAS
     // =========================================================================
     function getRandomCoordInZone(zoneKey) {
       const [minLng, minLat, maxLng, maxLat] = ZONES[zoneKey].bbox;
@@ -1204,12 +1233,12 @@
       return { lat, lng };
     }
 
-    async function fetchMapillary360Near(lat, lng, delta = 0.015) {
+    async function fetchMapillary360Near(lat, lng, delta = 0.012) {
       const token = STATE.mapillaryToken;
       if (!token) return null;
 
       const bbox = `${(lng - delta).toFixed(5)},${(lat - delta).toFixed(5)},${(lng + delta).toFixed(5)},${(lat + delta).toFixed(5)}`;
-      const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,thumb_1024_url,is_pano&bbox=${bbox}&is_pano=true&limit=25`;
+      const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,is_pano&bbox=${bbox}&limit=15`;
 
       try {
         const res = await fetch(url);
@@ -1217,19 +1246,20 @@
         const json = await res.json();
         if (!json.data || json.data.length === 0) return null;
 
-        const panos = json.data.filter(img => img.is_pano === true && (img.thumb_2048_url || img.thumb_1024_url));
-        if (panos.length === 0) return null;
+        const panos = json.data.filter(img => img.is_pano && img.thumb_2048_url);
+        const pool = panos.length > 0 ? panos : json.data.filter(img => img.thumb_2048_url);
+        if (pool.length === 0) return null;
 
-        const chosen = panos[Math.floor(Math.random() * panos.length)];
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
         const coords = chosen.computed_geometry?.coordinates || chosen.geometry?.coordinates || [lng, lat];
 
         return {
           imageId: chosen.id,
-          imageUrl: chosen.thumb_2048_url || chosen.thumb_1024_url,
+          imageUrl: chosen.thumb_2048_url,
           lat: coords[1],
           lng: coords[0],
-          isPano: true,
-          label: `${ZONES[STATE.selectedZone].label} (360°)`
+          isPano: !!chosen.is_pano,
+          label: `${ZONES[STATE.selectedZone].label}`
         };
       } catch (err) {
         console.warn('Erreur Mapillary:', err);
@@ -1240,7 +1270,7 @@
     async function fetchMapillaryImageById(imageId) {
       const token = STATE.mapillaryToken;
       if (!token) return null;
-      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,thumb_1024_url,is_pano`;
+      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${encodeURIComponent(token)}&fields=id,computed_geometry,geometry,thumb_2048_url,is_pano`;
       try {
         const res = await fetch(url);
         if (!res.ok) return null;
@@ -1249,11 +1279,11 @@
         if (!coords) return null;
         return {
           imageId: data.id,
-          imageUrl: data.thumb_2048_url || data.thumb_1024_url,
+          imageUrl: data.thumb_2048_url,
           lat: coords[1],
           lng: coords[0],
-          isPano: data.is_pano === true,
-          label: `Défi 360° #${data.id.slice(-4)}`
+          isPano: !!data.is_pano,
+          label: `Défi #${data.id.slice(-4)}`
         };
       } catch (_) {
         return null;
@@ -1270,41 +1300,34 @@
 
       for (let i = 0; i < 5; i++) {
         bar.style.width = `${(i + 1) * 18}%`;
-        stepText.textContent = `Recherche panorama 360° ${i + 1}/5...`;
+        stepText.textContent = `Recherche panorama ${i + 1}/5...`;
 
         let found = null;
-        for (let attempt = 0; attempt < 6; attempt++) {
+        for (let attempt = 0; attempt < 3; attempt++) {
           const rnd = getRandomCoordInZone(zoneKey);
-          const searchRadius = attempt < 3 ? 0.016 : 0.032;
-          const candidate = await fetchMapillary360Near(rnd.lat, rnd.lng, searchRadius);
-          if (candidate && candidate.isPano && !usedIds.has(candidate.imageId)) {
+          const candidate = await fetchMapillary360Near(rnd.lat, rnd.lng, 0.015);
+          if (candidate && !usedIds.has(candidate.imageId)) {
             found = candidate;
             break;
           }
         }
 
         if (!found) {
-          for (let fIdx = 0; fIdx < fallbacks.length; fIdx++) {
-            const fb = fallbacks[(i + fIdx) % fallbacks.length];
-            const candidate = await fetchMapillary360Near(fb.lat, fb.lng, 0.014);
-            if (candidate && candidate.isPano && !usedIds.has(candidate.imageId)) {
-              candidate.label = fb.name;
-              found = candidate;
-              break;
-            }
-          }
-        }
-
-        if (!found) {
           const fb = fallbacks[i % fallbacks.length];
-          found = {
-            imageId: 'fallback_' + i,
-            imageUrl: null,
-            lat: fb.lat,
-            lng: fb.lng,
-            isPano: true,
-            label: fb.name
-          };
+          const nearFb = await fetchMapillary360Near(fb.lat, fb.lng, 0.012);
+          if (nearFb && !usedIds.has(nearFb.imageId)) {
+            nearFb.label = fb.name;
+            found = nearFb;
+          } else {
+            found = {
+              imageId: 'fallback_' + i,
+              imageUrl: null,
+              lat: fb.lat,
+              lng: fb.lng,
+              isPano: false,
+              label: fb.name
+            };
+          }
         }
 
         usedIds.add(found.imageId);
@@ -1312,7 +1335,7 @@
       }
 
       bar.style.width = '100%';
-      stepText.textContent = '5 panoramas 360° prêts !';
+      stepText.textContent = 'Prêt !';
       return results;
     }
 
@@ -1365,7 +1388,7 @@
         const ids = idsPart.split(',').filter(Boolean).slice(0, 5);
         const rounds = [];
         for (let i = 0; i < ids.length; i++) {
-          document.getElementById('loading-step-text').textContent = `Chargement défi 360° ${i + 1}/${ids.length}...`;
+          document.getElementById('loading-step-text').textContent = `Chargement défi ${i + 1}/${ids.length}...`;
           const item = await fetchMapillaryImageById(ids[i]);
           if (item) rounds.push(item);
         }
@@ -1387,6 +1410,7 @@
       STATE.currentRoundIndex = 0;
       STATE.totalScore = 0;
       STATE.roundHistory = [];
+      STATE.scoreboardShownForRound = -1;
       startRound(0);
     }
 
@@ -1394,6 +1418,7 @@
     // 8. MOTEUR DE MANCHE (RENDU THREE.JS 360° + MINIMAP LEAFLET + CHRONO)
     // =========================================================================
     function startRound(index) {
+      clearInterval(STATE.scoreboardTimerInterval);
       STATE.currentRoundIndex = index;
       STATE.hasSubmittedCurrentRound = false;
       STATE.currentGuessLatLng = null;
@@ -1442,7 +1467,7 @@
         container.innerHTML = '';
         container.appendChild(renderer.domElement);
 
-        const geometry = new THREE.SphereGeometry(500, 64, 40);
+        const geometry = new THREE.SphereGeometry(500, 60, 40);
         geometry.scale(-1, 1, 1);
         const material = new THREE.MeshBasicMaterial({ color: 0x1e293b });
         const mesh = new THREE.Mesh(geometry, material);
@@ -1466,8 +1491,8 @@
 
         const onPointerMove = (clientX, clientY) => {
           if (!STATE.three.isDragging) return;
-          STATE.three.lon = (STATE.three.startX - clientX) * 0.22 + STATE.three.startLon;
-          STATE.three.lat = (clientY - STATE.three.startY) * 0.22 + STATE.three.startLat;
+          STATE.three.lon = (STATE.three.startX - clientX) * 0.18 + STATE.three.startLon;
+          STATE.three.lat = (clientY - STATE.three.startY) * 0.18 + STATE.three.startLat;
         };
 
         const onPointerUp = () => {
@@ -1643,7 +1668,7 @@
     }
 
     // =========================================================================
-    // 9. CALCUL DE SCORE, RÉSULTAT DE MANCHE & SYNCHRO ATTENTE JOUEURS
+    // 9. ATTENTE DES JOUEURS -> TABLEAU DES SCORES (5s) -> TOUR SUIVANT AUTO
     // =========================================================================
     function computeDistanceMeters(lat1, lon1, lat2, lon2) {
       const R = 6371000;
@@ -1721,38 +1746,28 @@
         } catch (err) {
           console.error('Erreur sync score:', err);
         }
-      }
 
-      showRoundResultScreen(roundEntry);
-    }
-
-    function showRoundResultScreen(entry) {
-      showScreen('screen-round-result');
-
-      const rNum = STATE.currentRoundIndex + 1;
-      const totalR = STATE.roundsData.length;
-      document.getElementById('result-round-badge').textContent = `Résultat Manche ${rNum}/${totalR}`;
-      document.getElementById('result-location-name').textContent = entry.label;
-      document.getElementById('result-points-earned').textContent = `+${entry.points.toLocaleString('fr-FR')} pts`;
-      document.getElementById('result-distance-text').textContent = formatDistance(entry.distanceMeters);
-
-      const nextBtn = document.getElementById('btn-next-round');
-      const nextLabel = document.getElementById('btn-next-round-label');
-      nextLabel.textContent = rNum < totalR ? 'Manche suivante' : 'Voir le podium final';
-
-      if (STATE.isMultiplayer && STATE.roomData) {
-        updateRoundResultMultiplayerUI(STATE.roomData);
+        // En multijoueur : si tout le monde a déjà fini, on affiche directement le tableau des scores,
+        // sinon on affiche l'écran d'attente sans révéler les résultats.
+        if (STATE.roomData) {
+          const players = Object.values(STATE.roomData.players || {});
+          const rIdx = STATE.currentRoundIndex;
+          const allDone = players.every(p => p.id === STATE.playerId || (p.roundGuesses && p.roundGuesses[rIdx] !== undefined));
+          if (allDone) {
+            revealScoreboardFor5Seconds(STATE.roomData);
+          } else {
+            showWaitingScreen(STATE.roomData);
+          }
+        } else {
+          showWaitingScreen(null);
+        }
       } else {
-        document.getElementById('round-waiting-banner').classList.add('hidden');
-        nextBtn.disabled = false;
-        renderResultMap(entry, []);
-        renderRoundLeaderboard([
-          { name: STATE.username, points: entry.points, distanceMeters: entry.distanceMeters, totalScore: STATE.totalScore, isMe: true }
-        ]);
+        // En mode solo : affichage direct du tableau des scores pendant 5 secondes
+        revealScoreboardFor5Seconds(null);
       }
     }
 
-    function generateWaitingBanter(rows, pendingPlayers) {
+    function generateWaitingBanter(pendingPlayers) {
       const devoraPunchlines = [
         "Info flash : Devora a encore les cheveux gras aujourd'hui...",
         "Selon nos capteurs Mapillary, les cheveux gras de Devora brillent jusqu'au périphérique !",
@@ -1767,7 +1782,6 @@
       }
 
       const candidates = [];
-
       if (pendingPlayers && pendingPlayers.length > 0) {
         const slowpoke = pendingPlayers[Math.floor(Math.random() * pendingPlayers.length)];
         candidates.push({
@@ -1776,104 +1790,153 @@
         });
         candidates.push({
           emoji: '⏳',
-          text: `Quelqu'un réveille ${slowpoke.name} ? Le chrono tourne !`
+          text: `Quelqu'un réveille ${slowpoke.name} ? Tout le monde attend son point !`
         });
-      }
-
-      const validGuesses = rows.filter(r => r.distanceMeters !== null && r.distanceMeters !== undefined);
-      if (validGuesses.length > 0) {
-        const sortedByDist = [...validGuesses].sort((a, b) => b.distanceMeters - a.distanceMeters);
-        const worst = sortedByDist[0];
-        const best = sortedByDist[sortedByDist.length - 1];
-
-        if (worst && worst.distanceMeters > 2500) {
-          candidates.push({
-            emoji: '🧭',
-            text: `${worst.name} s'est complètement perdu ! (${formatDistance(worst.distanceMeters)} à côté)`
-          });
-        }
-        if (best && best.distanceMeters < 200) {
-          candidates.push({
-            emoji: '🎯',
-            text: `${best.name} habite littéralement dans cet immeuble (${formatDistance(best.distanceMeters)}) !`
-          });
-        }
-      }
-
-      const timedOut = rows.find(r => r.distanceMeters === null || r.distanceMeters === undefined);
-      if (timedOut) {
         candidates.push({
-          emoji: '💤',
-          text: `${timedOut.name} a oublié de cliquer sur la carte avant la fin du chrono !`
+          emoji: '🧭',
+          text: `${slowpoke.name} s'est complètement perdu dans les rues de Paris !`
         });
       }
 
       if (candidates.length === 0) {
         candidates.push({
           emoji: '👀',
-          text: `On observe les derniers clics de la manche en direct...`
+          text: `Tout le monde verrouille sa position avant la révélation des scores...`
         });
       }
 
       return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    function updateRoundResultMultiplayerUI(room) {
+    function showWaitingScreen(room) {
+      showScreen('screen-round-waiting');
       const rIdx = STATE.currentRoundIndex;
-      const players = Object.values(room.players || {});
-      const readyPlayers = players.filter(p => p.roundGuesses && p.roundGuesses[rIdx] !== undefined);
-      const pendingPlayers = players.filter(p => !p.roundGuesses || p.roundGuesses[rIdx] === undefined);
+      const rNum = rIdx + 1;
+      const totalR = STATE.roundsData.length;
+      document.getElementById('waiting-round-badge').textContent = `Manche ${rNum} / ${totalR} • Repère verrouillé`;
 
-      const waitingBanner = document.getElementById('round-waiting-banner');
-      const nextBtn = document.getElementById('btn-next-round');
-      const nextLabel = document.getElementById('btn-next-round-label');
+      if (!room || !room.players) return;
+
+      const players = Object.values(room.players);
+      const readyPlayers = players.filter(p => p.id === STATE.playerId || (p.roundGuesses && p.roundGuesses[rIdx] !== undefined));
+      const pendingPlayers = players.filter(p => p.id !== STATE.playerId && (!p.roundGuesses || p.roundGuesses[rIdx] === undefined));
+
+      document.getElementById('waiting-screen-counter').textContent = `${readyPlayers.length}/${players.length} prêts`;
+
+      const listEl = document.getElementById('waiting-pending-players-list');
+      listEl.innerHTML = pendingPlayers.map(p => `
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/35 text-xs font-extrabold text-amber-200">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          ${escapeHtml(p.name)}
+        </span>
+      `).join('');
+
+      const banter = generateWaitingBanter(pendingPlayers);
+      document.getElementById('waiting-banter-emoji').textContent = banter.emoji;
+      document.getElementById('waiting-banter-text').textContent = banter.text;
+    }
+
+    function evaluateMultiplayerRoundProgression(room) {
+      const rIdx = STATE.currentRoundIndex;
+      if (STATE.scoreboardShownForRound === rIdx) return;
+
+      const players = Object.values(room.players || {});
+      const pendingPlayers = players.filter(p => p.id !== STATE.playerId && (!p.roundGuesses || p.roundGuesses[rIdx] === undefined));
+
+      if (pendingPlayers.length > 0) {
+        if (!document.getElementById('screen-round-waiting').classList.contains('hidden')) {
+          showWaitingScreen(room);
+        }
+      } else if (STATE.hasSubmittedCurrentRound) {
+        // Tout le monde a placé son point -> on révèle le tableau des scores pendant 5 secondes !
+        revealScoreboardFor5Seconds(room);
+      }
+    }
+
+    function revealScoreboardFor5Seconds(room) {
+      const rIdx = STATE.currentRoundIndex;
+      if (STATE.scoreboardShownForRound === rIdx) return;
+      STATE.scoreboardShownForRound = rIdx;
+
+      showScreen('screen-round-result');
+
+      const entry = STATE.roundHistory[rIdx];
       const rNum = rIdx + 1;
       const totalR = STATE.roundsData.length;
 
-      if (pendingPlayers.length > 0) {
-        waitingBanner.classList.remove('hidden');
-        document.getElementById('round-ready-counter').textContent = `${readyPlayers.length}/${players.length} prêts`;
-        const namesList = pendingPlayers.map(p => escapeHtml(p.name)).join(', ');
-        document.getElementById('round-waiting-names').innerHTML = `En attente de : <strong class="text-white">${namesList}</strong>`;
-        nextBtn.disabled = true;
-        nextLabel.textContent = `En attente de ${pendingPlayers.length} joueur${pendingPlayers.length > 1 ? 's' : ''}...`;
+      document.getElementById('result-round-badge').textContent = `Tableau des scores • Manche ${rNum}/${totalR}`;
+      document.getElementById('result-location-name').textContent = entry.label;
+      document.getElementById('result-points-earned').textContent = `+${entry.points.toLocaleString('fr-FR')} pts`;
+      document.getElementById('result-distance-text').textContent = formatDistance(entry.distanceMeters);
+
+      if (room && room.players) {
+        const players = Object.values(room.players);
+        const otherGuesses = players
+          .filter(p => p.id !== STATE.playerId && p.roundGuesses && p.roundGuesses[rIdx]?.guessCoords)
+          .map(p => ({
+            name: p.name,
+            coords: p.roundGuesses[rIdx].guessCoords
+          }));
+
+        renderResultMap(entry, otherGuesses);
+
+        const rows = players.map(p => {
+          const g = p.roundGuesses ? p.roundGuesses[rIdx] : null;
+          return {
+            name: p.name,
+            points: g ? g.points : 0,
+            distanceMeters: g ? g.distanceMeters : null,
+            totalScore: p.score || 0,
+            isMe: p.id === STATE.playerId
+          };
+        }).sort((a, b) => b.totalScore - a.totalScore);
+
+        renderRoundLeaderboard(rows);
       } else {
-        waitingBanner.classList.add('hidden');
-        nextBtn.disabled = false;
-        nextLabel.textContent = rNum < totalR ? 'Manche suivante' : 'Voir le podium final';
+        renderResultMap(entry, []);
+        renderRoundLeaderboard([
+          {
+            name: STATE.username,
+            points: entry.points,
+            distanceMeters: entry.distanceMeters,
+            totalScore: STATE.totalScore,
+            isMe: true
+          }
+        ]);
       }
 
-      const myEntry = STATE.roundHistory[rIdx];
-      const otherGuesses = readyPlayers
-        .filter(p => p.id !== STATE.playerId && p.roundGuesses[rIdx]?.guessCoords)
-        .map(p => ({
-          name: p.name,
-          coords: p.roundGuesses[rIdx].guessCoords
-        }));
+      // Décompte automatique de 5 secondes avant de passer au tour suivant
+      startScoreboard5sCountdown(rNum < totalR);
+    }
 
-      if (myEntry) {
-        renderResultMap(myEntry, otherGuesses);
-      }
+    function startScoreboard5sCountdown(hasNextRound) {
+      clearInterval(STATE.scoreboardTimerInterval);
+      let remaining = 5;
 
-      const rows = players.map(p => {
-        const g = p.roundGuesses ? p.roundGuesses[rIdx] : null;
-        return {
-          name: p.name,
-          points: g ? g.points : 0,
-          distanceMeters: g ? g.distanceMeters : null,
-          totalScore: p.score || 0,
-          isMe: p.id === STATE.playerId,
-          isPending: !g
-        };
-      }).sort((a, b) => b.totalScore - a.totalScore);
+      const labelEl = document.getElementById('scoreboard-countdown-label');
+      const secEl = document.getElementById('scoreboard-countdown-seconds');
+      const barEl = document.getElementById('scoreboard-countdown-bar');
 
-      if (pendingPlayers.length > 0) {
-        const banter = generateWaitingBanter(rows, pendingPlayers);
-        document.getElementById('round-banter-emoji').textContent = banter.emoji;
-        document.getElementById('round-banter-text').textContent = banter.text;
-      }
+      labelEl.textContent = hasNextRound ? 'Prochain tour dans...' : 'Affichage du podium final dans...';
+      secEl.textContent = `${remaining}s`;
+      barEl.style.transition = 'none';
+      barEl.style.width = '100%';
 
-      renderRoundLeaderboard(rows);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          barEl.style.transition = 'width 5s linear';
+          barEl.style.width = '0%';
+        });
+      });
+
+      STATE.scoreboardTimerInterval = setInterval(() => {
+        remaining -= 1;
+        secEl.textContent = `${Math.max(0, remaining)}s`;
+        if (remaining <= 0) {
+          clearInterval(STATE.scoreboardTimerInterval);
+          proceedToNextRound();
+        }
+      }, 1000);
     }
 
     function renderResultMap(entry, otherGuesses = []) {
@@ -1954,17 +2017,18 @@
             <span class="font-mono text-xs font-black text-slate-400 w-5">#${idx + 1}</span>
             <div>
               <span class="text-sm font-bold text-white block">${escapeHtml(r.name)}</span>
-              <span class="text-[11px] ${r.isPending ? 'text-amber-300 font-semibold' : 'text-slate-400'}">
-                ${r.isPending ? '⏳ Place son repère...' : `${formatDistance(r.distanceMeters)} (+${r.points})`}
+              <span class="text-[11px] text-slate-400">
+                ${formatDistance(r.distanceMeters)} • <strong class="text-emerald-400">+${r.points.toLocaleString('fr-FR')} pts</strong>
               </span>
             </div>
           </div>
-          <span class="font-mono text-sm font-black text-indigo-300">${r.totalScore.toLocaleString('fr-FR')}</span>
+          <span class="font-mono text-sm font-black text-indigo-300">${r.totalScore.toLocaleString('fr-FR')} pts</span>
         </div>
       `).join('');
     }
 
     function proceedToNextRound() {
+      clearInterval(STATE.scoreboardTimerInterval);
       const nextIdx = STATE.currentRoundIndex + 1;
       if (nextIdx < STATE.roundsData.length) {
         startRound(nextIdx);
