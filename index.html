@@ -663,7 +663,7 @@
     // =========================================================================
     // 1. CONFIGURATION & CONSTANTES GLOBALES
     // =========================================================================
-    const DEFAULT_MAPILLARY_TOKEN = "MLY|27579750788272521|63261d7226d35b14cf69c383b419a76a";
+    const DEFAULT_MAPILLARY_TOKEN = "MLY|29468706819480746|07c60431267356042a597f6c50a40506";
 
     const DEFAULT_FIREBASE_CONFIG = {
       apiKey: "AIzaSyBEcDEiJpLnr4IuuDO_Qj1UqvWyhlV74zU",
@@ -1236,7 +1236,6 @@
       const token = STATE.mapillaryToken;
       if (!token || isNaN(lat) || isNaN(lng)) return null;
 
-      // Mapillary v4 rejette en 400 Bad Request les bbox trop larges
       const safeDelta = Math.min(delta, 0.009);
       const bbox = [
         (lng - safeDelta).toFixed(5),
@@ -1245,7 +1244,7 @@
         (lat + safeDelta).toFixed(5)
       ].join(',');
 
-      const url = `https://graph.mapillary.com/images?access_token=${token}&fields=id,geometry,thumb_2048_url,is_pano&bbox=${bbox}&limit=15`;
+      const url = `https://graph.mapillary.com/images?access_token=${encodeURIComponent(token)}&fields=id,geometry,thumb_2048_url,is_pano&bbox=${bbox}&limit=15`;
 
       try {
         const res = await fetch(url);
@@ -1281,7 +1280,7 @@
     async function fetchMapillaryImageById(imageId) {
       const token = STATE.mapillaryToken;
       if (!token) return null;
-      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${token}&fields=id,geometry,thumb_2048_url,is_pano`;
+      const url = `https://graph.mapillary.com/${encodeURIComponent(imageId)}?access_token=${encodeURIComponent(token)}&fields=id,geometry,thumb_2048_url,is_pano`;
       try {
         const res = await fetch(url);
         if (!res.ok) return null;
